@@ -1,6 +1,6 @@
 // גינת הבית — keeps the app shell available offline. Claude API calls always go to the network.
-const CACHE = 'garden-home-v1';
-const SHELL = ['./', 'index.html', 'app.js', 'anthropic-sdk.js', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png'];
+const CACHE = 'garden-home-v3';
+const SHELL = ['./', 'index.html', 'app.js?v=3', 'anthropic-sdk.js', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
@@ -19,7 +19,9 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
   if (event.request.method !== 'GET' || url.origin !== self.location.origin) return;
   event.respondWith(
-    fetch(event.request)
+    // 'no-cache' revalidates with GitHub Pages every time, so a new version shows up on the next open
+    // instead of after the 10-minute browser cache expires.
+    fetch(event.request, { cache: 'no-cache' })
       .then((res) => {
         const copy = res.clone();
         caches.open(CACHE).then((c) => c.put(event.request, copy));
