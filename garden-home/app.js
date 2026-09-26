@@ -671,7 +671,8 @@
     var tag = isTrees ? 'השקיה ודישון לפי עונה' : (LIGHT_ICON[loc.lightLevel]||'') + ' ' + (LIGHT_LABEL[loc.lightLevel]||'');
     return '<button type="button" class="sec-back" id="backToSections">→ כל האזורים</button>' +
       '<div class="loc-group-head">' +
-        '<div class="loc-group-title">' + (isTrees?'🌳 ':'') + escapeHtml(loc.name) + '<span class="loc-light-tag">' + tag + '</span></div>' +
+        '<div class="loc-group-title">' + (isTrees?'🌳 ':'') + escapeHtml(loc.name) + '<span class="loc-light-tag">' + tag + '</span>' +
+          '<button type="button" class="area-edit-btn" id="editArea" data-loc="' + loc.id + '">✏️ עריכת האזור</button></div>' +
         '<div class="loc-bulk-actions">' +
           '<button type="button" class="bulk-btn" ' + (list.length?'':'disabled') + ' data-bulk="water" data-loc="' + loc.id + '">💧 השקיתי את כל האזור (' + list.length + ')</button>' +
           '<button type="button" class="bulk-btn fert" ' + (nf?'':'disabled') + ' data-bulk="fert" data-loc="' + loc.id + '">🌱 דשנו ממתינים (' + nf + ')</button>' +
@@ -1175,89 +1176,168 @@
     });
   }
 
-  /* ---------- manage areas ---------- */
-  function locRowHtml(l){
-    var count = plantsInArea(l.id).length;
-    return (
-      '<div class="loc-row" data-loc="' + l.id + '">' +
-        '<input type="text" class="loc-name-input" id="locName-' + l.id + '" data-loc="' + l.id + '" value="' + escapeHtml(l.name) + '" aria-label="שם האזור">' +
-        '<select class="loc-light-select" id="locLight-' + l.id + '" data-loc="' + l.id + '" aria-label="כמות אור">' +
-          Object.keys(LIGHT_LABEL).map(function(k){ return '<option value="'+k+'"'+(k===l.lightLevel?' selected':'')+'>'+LIGHT_ICON[k]+' '+LIGHT_LABEL[k]+'</option>'; }).join('') +
-        '</select>' +
-        '<button type="button" class="loc-del-btn" data-loc="' + l.id + '" ' + (count>0?'disabled title="יש צמחים באזור הזה"':'title="מחיקה"') + ' aria-label="מחיקת אזור">🗑</button>' +
-      '</div>'
-    );
+  /* ---------- manage areas: list → edit (name, light, plants) → delete with a destination ---------- */
+  var areaSheet = { mode:'list', id:null, back:'list' };
+  function areaIcon(l){ return l.kind === 'trees' ? '🌳' : (LIGHT_ICON[l.lightLevel] || '📍'); }
+  function areaListHtml(){
+    var cards = state.locations.map(function(l, i){
+      var isTrees = l.kind === 'trees';
+      var n = plantsInArea(l.id).length;
+      var potIdx = potLocations().indexOf(l);
+      return '<div class="am-card">' +
+        '<span class="am-ic" aria-hidden="true">' + areaIcon(l) + '</span>' +
+        '<span class="am-main"><span class="am-name">' + escapeHtml(l.name) + '</span>' +
+          '<span class="am-sub">' + n + (isTrees ? ' עצים' : ' עציצים') + (isTrees ? '' : ' · ' + (LIGHT_LABEL[l.lightLevel] || '')) + '</span></span>' +
+        (isTrees ? '' :
+          '<button type="button" class="am-mini" data-am="up" data-loc="' + l.id + '" aria-label="הזזה למעלה"' + (potIdx === 0 ? ' disabled' : '') + '>▲</button>' +
+          '<button type="button" class="am-mini" data-am="down" data-loc="' + l.id + '" aria-label="הזזה למטה"' + (potIdx === potLocations().length - 1 ? ' disabled' : '') + '>▼</button>') +
+        '<button type="button" class="btn btn-ghost am-edit" data-am="edit" data-loc="' + l.id + '">✏️ עריכה</button>' +
+      '</div>';
+    }).join('');
+    return '<div class="sheet">' +
+      '<h2>ניהול אזורים</h2>' +
+      '<p class="am-hint">לחצו "עריכה" כדי לשנות שם, כמות אור, ולהוסיף או להעביר צמחים בין אזורים. החצים משנים את הסדר במסך הראשי.</p>' +
+      '<div class="am-list">' + cards + '</div>' +
+      '<div class="sheet-actions" style="margin-top:14px;">' +
+        '<button type="button" class="btn btn-ghost" data-am="close">סגירה</button>' +
+        '<button type="button" class="btn btn-primary" data-am="new">➕ אזור חדש</button>' +
+      '</div>' +
+    '</div>';
   }
-  var newLocDraftLight = null;
-  function locationsSheetBody(){
-    newLocDraftLight = null;
-    return (
-      '<div class="sheet">' +
-        '<h2>ניהול אזורים</h2>' +
-        '<p class="empty-note" style="text-align:right;padding:0 0 12px;">כמות האור קובעת כל כמה ימים להשקות. אפשר למחוק רק אזור ריק.</p>' +
-        '<div id="locRows">' + potLocations().map(locRowHtml).join('') + '</div>' +
-        '<div class="field" style="margin-top:16px;"><label for="addLocName">הוספת אזור חדש</label>' +
-          '<input type="text" id="addLocName" placeholder="שם האזור" style="margin-bottom:8px;">' +
-          '<div class="choice-row" id="addLocLight">' + LIGHT_CHOICES_HTML + '</div>' +
-        '</div>' +
-        '<div class="req-note" id="locReqNote"></div>' +
-        '<div class="sheet-actions">' +
-          '<button class="btn btn-ghost" id="locCancel">סגירה</button>' +
-          '<button class="btn btn-primary" id="addLocBtn">הוספת אזור</button>' +
-        '</div>' +
-      '</div>'
-    );
+  function areaEditHtml(id){
+    var isNew = !id;
+    var l = isNew ? { id:null, name:'', lightLevel:'partial' } : getLocation(id);
+    var isTrees = l.kind === 'trees';
+    var inArea = isNew ? [] : plantsInArea(l.id);
+    var others = potLocations().filter(function(o){ return o.id !== l.id; });
+    var moveOpts = function(){ return '<option value="">נשאר כאן</option>' + others.map(function(o){ return '<option value="' + o.id + '">העברה ל' + escapeHtml(o.name) + '</option>'; }).join(''); };
+    var rows = inArea.map(function(p){
+      return '<div class="am-plant"><span class="am-pname">' + TYPE_ICON[p.type] + ' ' + escapeHtml(p.name) + '</span>' +
+        (isTrees ? '' : '<select class="am-move" data-plant="' + p.id + '" aria-label="העברת ' + escapeHtml(p.name) + '">' + moveOpts() + '</select>') + '</div>';
+    }).join('');
+    var addable = isTrees ? '' : others.map(function(o){
+      var list = plantsInArea(o.id);
+      if (!list.length) return '';
+      return '<div class="am-group">' + escapeHtml(o.name) + '</div>' + list.map(function(p){
+        return '<label class="am-check"><input type="checkbox" class="am-add" value="' + p.id + '"> ' + TYPE_ICON[p.type] + ' ' + escapeHtml(p.name) + '</label>';
+      }).join('');
+    }).join('');
+    return '<div class="sheet">' +
+      '<button type="button" class="sec-back" data-am="back">→ כל האזורים</button>' +
+      '<h2>' + (isNew ? 'אזור חדש' : 'עריכת אזור') + '</h2>' +
+      '<div class="field"><label for="amName">שם האזור</label><input type="text" id="amName" value="' + escapeHtml(l.name) + '" placeholder="למשל: מרפסת צפונית"></div>' +
+      (isTrees ? '' :
+        '<div class="field"><label>כמות אור באזור <span class="am-note">(קובעת כל כמה ימים להשקות)</span></label>' +
+          '<div class="choice-row" id="amLight">' + Object.keys(LIGHT_LABEL).map(function(k){
+            return '<button type="button" class="choice' + (k === l.lightLevel ? ' selected' : '') + '" data-val="' + k + '">' + LIGHT_ICON[k] + ' ' + LIGHT_LABEL[k] + '</button>';
+          }).join('') + '</div></div>') +
+      (isNew ? '' : '<div class="field"><label>' + (isTrees ? 'העצים' : 'העציצים באזור') + ' (' + inArea.length + ')</label>' +
+        (rows ? '<div class="am-plants">' + rows + '</div>' : '<div class="am-note">אין עדיין צמחים באזור הזה.</div>') + '</div>') +
+      (addable ? '<details class="am-details"' + (isNew ? ' open' : '') + '><summary>➕ הוספת עציצים מאזורים אחרים</summary><div class="am-addlist">' + addable + '</div></details>' : '') +
+      '<div class="req-note" id="amNote"></div>' +
+      '<div class="sheet-actions">' +
+        (isNew || isTrees ? '<button type="button" class="btn btn-ghost" data-am="back">ביטול</button>'
+          : '<button type="button" class="btn btn-danger-ghost" data-am="delete" data-loc="' + l.id + '">🗑 מחיקה</button>') +
+        '<button type="button" class="btn btn-primary" data-am="save">שמירה</button>' +
+      '</div>' +
+    '</div>';
   }
-  function refreshLocationsSheet(){
-    var sheet = document.querySelector('#sheetBackdrop .sheet');
-    if (sheet) sheet.outerHTML = locationsSheetBody();
+  function areaDeleteHtml(id){
+    var l = getLocation(id), n = plantsInArea(id).length;
+    var others = potLocations().filter(function(o){ return o.id !== id; });
+    return '<div class="sheet">' +
+      '<h2>מחיקת "' + escapeHtml(l.name) + '"</h2>' +
+      (n ? '<div class="field"><label for="amDest">לאן להעביר את ' + n + ' העציצים שבאזור?</label>' +
+          '<select class="field-select" id="amDest">' + others.map(function(o){ return '<option value="' + o.id + '">' + escapeHtml(o.name) + '</option>'; }).join('') + '</select></div>'
+        : '<p class="am-hint">האזור ריק. המחיקה לא משפיעה על אף צמח.</p>') +
+      '<div class="sheet-actions">' +
+        '<button type="button" class="btn btn-ghost" data-am="edit" data-loc="' + id + '">ביטול</button>' +
+        '<button type="button" class="btn btn-primary" data-am="confirmDelete" data-loc="' + id + '" style="background:var(--terracotta);"' + (n && !others.length ? ' disabled' : '') + '>מחיקת האזור</button>' +
+      '</div>' +
+    '</div>';
   }
-  function openLocationsSheet(){
+  function renderAreaSheet(){
+    var wrap = document.getElementById('sheetBackdrop');
+    if (!wrap) return;
+    wrap.innerHTML = areaSheet.mode === 'edit' ? areaEditHtml(areaSheet.id)
+      : areaSheet.mode === 'delete' ? areaDeleteHtml(areaSheet.id) : areaListHtml();
+    if (wrap.firstChild) wrap.firstChild.scrollTop = 0;
+  }
+  function saveAreaEdit(){
+    var note = document.getElementById('amNote');
+    var name = document.getElementById('amName').value.trim();
+    if (!name){ note.textContent = 'נא לתת שם לאזור'; return; }
+    var sel = document.querySelector('#amLight .choice.selected');
+    var l;
+    if (!areaSheet.id){
+      l = { id: 'loc-' + Date.now() + Math.floor(Math.random()*1000), name: name, lightLevel: sel ? sel.dataset.val : 'partial' };
+      state.locations.push(l);
+    } else {
+      l = getLocation(areaSheet.id);
+      l.name = name;
+      if (sel) l.lightLevel = sel.dataset.val;
+    }
+    var moved = 0;
+    document.querySelectorAll('#sheetBackdrop .am-move').forEach(function(s){
+      if (s.value){ var p = findPlant(s.dataset.plant); if (p){ p.locationId = s.value; moved++; } }
+    });
+    document.querySelectorAll('#sheetBackdrop .am-add:checked').forEach(function(c){
+      var p = findPlant(c.value); if (p){ p.locationId = l.id; moved++; }
+    });
+    saveState(); renderAll();
+    toast('נשמר' + (moved ? ' · הועברו ' + moved + ' צמחים' : ''));
+    if (areaSheet.back === 'close') closeSheet();
+    else { areaSheet = { mode:'list', id:null, back:'list' }; renderAreaSheet(); }
+  }
+  function onAreaSheetClick(e){
+    var wrap = document.getElementById('sheetBackdrop');
+    if (e.target === wrap){ closeSheet(); return; }
+    var choice = e.target.closest('#amLight .choice');
+    if (choice){
+      Array.prototype.forEach.call(choice.parentElement.children, function(b){ b.classList.toggle('selected', b === choice); });
+      return;
+    }
+    var btn = e.target.closest('[data-am]'); if (!btn || btn.disabled) return;
+    var act = btn.dataset.am, id = btn.dataset.loc;
+    if (act === 'close'){ closeSheet(); return; }
+    if (act === 'back'){
+      if (areaSheet.back === 'close'){ closeSheet(); return; }
+      areaSheet = { mode:'list', id:null, back:'list' }; renderAreaSheet(); return;
+    }
+    if (act === 'new'){ areaSheet = { mode:'edit', id:null, back:'list' }; renderAreaSheet(); return; }
+    if (act === 'edit'){ areaSheet = { mode:'edit', id:id, back:areaSheet.back }; renderAreaSheet(); return; }
+    if (act === 'delete'){ areaSheet = { mode:'delete', id:id, back:areaSheet.back }; renderAreaSheet(); return; }
+    if (act === 'save'){ saveAreaEdit(); return; }
+    if (act === 'up' || act === 'down'){
+      var arr = state.locations, i = arr.findIndex(function(x){ return x.id === id; });
+      var j = act === 'up' ? i - 1 : i + 1;
+      if (i < 0 || j < 0 || j >= arr.length || arr[j].kind === 'trees') return;
+      var t = arr[i]; arr[i] = arr[j]; arr[j] = t;
+      saveState(); renderAll(); renderAreaSheet(); return;
+    }
+    if (act === 'confirmDelete'){
+      var destEl = document.getElementById('amDest');
+      var dest = destEl ? destEl.value : null;
+      var gone = getLocation(id).name;
+      plantsInArea(id).forEach(function(p){ p.locationId = dest; });
+      state.locations = state.locations.filter(function(l){ return l.id !== id; });
+      if (!validArea(selectedArea)) setArea((potLocations()[0] || state.locations[0]).id);
+      if (openArea && !validArea(openArea)) setOpenArea(null);
+      saveState(); renderAll();
+      toast('האזור "' + gone + '" נמחק');
+      areaSheet = { mode:'list', id:null, back:'list' }; renderAreaSheet();
+    }
+  }
+  // from the main screen: the list; from inside an area: straight to that area's editor
+  function openLocationsSheet(editId){
+    closeSheet();
+    areaSheet = editId ? { mode:'edit', id:editId, back:'close' } : { mode:'list', id:null, back:'list' };
     var wrap = document.createElement('div');
     wrap.className = 'sheet-backdrop';
     wrap.id = 'sheetBackdrop';
-    wrap.innerHTML = locationsSheetBody();
     document.getElementById('app').appendChild(wrap);
-    wrap.addEventListener('click', function(e){
-      if (e.target === wrap || e.target.id === 'locCancel'){ closeSheet(); return; }
-      var choice = e.target.closest('#addLocLight .choice');
-      if (choice){
-        Array.prototype.forEach.call(choice.parentElement.children, function(b){ b.classList.remove('selected'); });
-        choice.classList.add('selected');
-        newLocDraftLight = choice.dataset.val;
-        return;
-      }
-      var delBtn = e.target.closest('.loc-del-btn');
-      if (delBtn && !delBtn.disabled){
-        state.locations = state.locations.filter(function(l){ return l.id !== delBtn.dataset.loc; });
-        if (!validArea(selectedArea)) setArea((potLocations()[0] || state.locations[0]).id);
-        if (openArea && !validArea(openArea)) setOpenArea(null);
-        saveState(); refreshLocationsSheet(); renderAll();
-        return;
-      }
-      if (e.target.id === 'addLocBtn'){
-        var note = document.getElementById('locReqNote');
-        var name = document.getElementById('addLocName').value.trim();
-        if (!name){ note.textContent = 'נא להזין שם לאזור'; return; }
-        if (!newLocDraftLight){ note.textContent = 'נא לבחור כמה אור יש באזור'; return; }
-        state.locations.push({ id: 'loc-' + Date.now() + Math.floor(Math.random()*1000), name: name, lightLevel: newLocDraftLight });
-        saveState(); refreshLocationsSheet(); renderAll();
-      }
-    });
-    wrap.addEventListener('change', function(e){
-      var nameInput = e.target.closest('.loc-name-input');
-      if (nameInput){
-        var l = getLocation(nameInput.dataset.loc);
-        var v = nameInput.value.trim();
-        if (l.id && v){ l.name = v; saveState(); renderAll(); }
-        return;
-      }
-      var lightSelect = e.target.closest('.loc-light-select');
-      if (lightSelect){
-        var l2 = getLocation(lightSelect.dataset.loc);
-        if (l2.id){ l2.lightLevel = lightSelect.value; saveState(); renderAll(); }
-      }
-    });
+    wrap.addEventListener('click', onAreaSheetClick);
+    renderAreaSheet();
   }
 
   /* ---------- settings: Claude key for identification ---------- */
@@ -1512,6 +1592,8 @@
     if (e.target.id === 'settingsBtn'){ openSettingsSheet(); return; }
     if (e.target.id === 'exportBtn'){ exportBackup(); return; }
     if (e.target.id === 'importBtn'){ document.getElementById('importInput').click(); return; }
+    var editAreaBtn = e.target.closest('#editArea');
+    if (editAreaBtn){ openLocationsSheet(editAreaBtn.dataset.loc); return; }
     if (e.target.closest('#backToSections')){ setOpenArea(null); renderToday(); window.scrollTo(0,0); return; }
     var tile = e.target.closest('[data-open-area]');
     if (tile){ setOpenArea(tile.dataset.openArea); renderAreaBar(); renderToday(); renderWeek(); window.scrollTo(0,0); return; }
