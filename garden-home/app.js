@@ -88,6 +88,7 @@
   function isDue(info){ return !info.unknown && !info.off && info.daysUntil <= 0; }
 
   /* ---------- state ---------- */
+  var APP_VERSION = '3';
   var STATE_KEY = 'gardenHome_state_v1';
   var state = null;
   try { state = JSON.parse(localStorage.getItem(STATE_KEY) || 'null'); } catch(e){ state = null; }
@@ -648,7 +649,8 @@
       '<div class="backup-row">' +
         '<button type="button" class="btn btn-ghost" id="exportBtn">📤 ייצוא גיבוי</button>' +
         '<button type="button" class="btn btn-ghost" id="importBtn">📥 שחזור מגיבוי</button>' +
-      '</div>';
+      '</div>' +
+      '<p class="app-version">גרסה ' + APP_VERSION + '</p>';
   }
   function potRowHtml(p){
     var w = waterDue(p), f = fertDue(p);
@@ -1764,6 +1766,14 @@
   }
   loadAllPhotos().then(importOldJournal).then(function(){ if (freshInstall) saveState(); boot(); }, boot);
   if ('serviceWorker' in navigator){
-    window.addEventListener('load', function(){ navigator.serviceWorker.register('sw.js').catch(function(){}); });
+    window.addEventListener('load', function(){
+      navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(function(reg){ reg.update(); }).catch(function(){});
+    });
+    // When a new version takes over, reload once so it is used right away.
+    var hadController = !!navigator.serviceWorker.controller;
+    navigator.serviceWorker.addEventListener('controllerchange', function(){
+      if (!hadController || window.__ghReloaded) return;
+      window.__ghReloaded = true; window.location.reload();
+    });
   }
 })();
