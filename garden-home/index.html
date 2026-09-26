@@ -1,0 +1,628 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#3E6B52">
+<title>גינת הבית</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@500;700&amp;family=Rubik:wght@400;500;600;700&amp;display=swap">
+<style>
+  :root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+  body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif}
+  img{max-width:100%}
+  [hidden]{display:none!important}
+
+  :root{
+    --bg:#F6F1E7;
+    --surface:#FFFFFF;
+    --surface-soft:#FBF6EC;
+    --ink:#2B2A22;
+    --ink-soft:#726F5E;
+    --green:#3E6B52;
+    --green-soft:#DCE7DD;
+    --green-strong:#2B4E3B;
+    --terracotta:#C1694A;
+    --terracotta-soft:#F3E0D6;
+    --gold:#B98A2E;
+    --gold-soft:#F1E4C6;
+    --danger:#B23A2E;
+    --line:#E6DEC9;
+    --shadow: 0 8px 24px -12px rgba(43,42,34,.28);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#141912;
+      --surface:#1C2319;
+      --surface-soft:#20291E;
+      --ink:#EEE8D8;
+      --ink-soft:#A6A28D;
+      --green:#8FC7A2;
+      --green-soft:#25352A;
+      --green-strong:#B7DFC3;
+      --terracotta:#E6926B;
+      --terracotta-soft:#3A2A21;
+      --gold:#E3BD68;
+      --gold-soft:#332C19;
+      --danger:#FF7A64;
+      --line:#33402F;
+      --shadow: 0 8px 24px -12px rgba(0,0,0,.5);
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#141912;
+    --surface:#1C2319;
+    --surface-soft:#20291E;
+    --ink:#EEE8D8;
+    --ink-soft:#A6A28D;
+    --green:#8FC7A2;
+    --green-soft:#25352A;
+    --green-strong:#B7DFC3;
+    --terracotta:#E6926B;
+    --terracotta-soft:#3A2A21;
+    --gold:#E3BD68;
+    --gold-soft:#332C19;
+    --danger:#FF7A64;
+    --line:#33402F;
+    --shadow: 0 8px 24px -12px rgba(0,0,0,.5);
+  }
+
+  *{box-sizing:border-box;}
+  body{background:var(--bg);color:var(--ink);}
+  #app{
+    direction:rtl;
+    font-family:'Rubik', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    min-height:100%;
+    display:flex;
+    flex-direction:column;
+    padding-inline:16px;
+    max-width:560px;
+    margin:0 auto;
+  }
+  h1,h2,h3,.display{
+    font-family:'Frank Ruhl Libre', 'Times New Roman', serif;
+    text-wrap:balance;
+  }
+  .topbar{
+    position:sticky;
+    top:env(safe-area-inset-top,0px);
+    z-index:20;
+    background:var(--bg);
+    padding-block:14px 8px;
+    display:flex;
+    flex-direction:column;
+    gap:2px;
+  }
+  .topbar h1{
+    font-size:26px;
+    font-weight:700;
+    color:var(--green-strong);
+    margin:0;
+  }
+  .topbar .subdate{
+    font-size:13px;
+    color:var(--ink-soft);
+  }
+  .tabs{
+    display:flex;
+    gap:6px;
+    background:var(--surface-soft);
+    border:1px solid var(--line);
+    border-radius:999px;
+    padding:4px;
+    margin-block:12px 14px;
+  }
+  .tab{
+    flex:1;
+    text-align:center;
+    padding:9px 4px;
+    border-radius:999px;
+    font-size:14px;
+    font-weight:600;
+    color:var(--ink-soft);
+    background:transparent;
+    border:none;
+    cursor:pointer;
+    font-family:inherit;
+  }
+  .tab.active{
+    background:var(--green);
+    color:#fff;
+  }
+  :root[data-theme="dark"] .tab.active{ color:#0F1710; }
+  @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .tab.active{ color:#0F1710; } }
+  main{flex:1;padding-bottom:96px;}
+  section[hidden]{display:none!important;}
+
+  .banner{
+    background:var(--gold-soft);
+    border:1px solid var(--line);
+    border-radius:16px;
+    padding:12px 14px;
+    font-size:13px;
+    color:var(--ink);
+    margin-bottom:14px;
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+  }
+  .banner b{color:var(--green-strong);}
+  .btn{
+    font-family:inherit;
+    border:none;
+    border-radius:12px;
+    padding:10px 16px;
+    font-size:14px;
+    font-weight:600;
+    cursor:pointer;
+  }
+  .btn-primary{background:var(--green);color:#fff;}
+  @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .btn-primary{color:#0F1710;} }
+  :root[data-theme="dark"] .btn-primary{color:#0F1710;}
+  .btn-ghost{background:transparent;color:var(--green);border:1px solid var(--green);}
+
+  .group-title{
+    font-size:13px;
+    font-weight:700;
+    color:var(--ink-soft);
+    letter-spacing:.03em;
+    margin:18px 2px 8px;
+  }
+  .plant-list{display:flex;flex-direction:column;gap:10px;}
+  .card{
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:16px;
+    padding:12px 14px;
+    display:flex;
+    align-items:center;
+    gap:12px;
+    box-shadow:var(--shadow);
+  }
+  .card.is-example{opacity:.72;}
+  .card-icon{
+    width:44px;height:44px;flex:none;
+    border-radius:12px;
+    background:var(--green-soft);
+    display:flex;align-items:center;justify-content:center;
+    font-size:19px;
+    overflow:hidden;
+    position:relative;
+    cursor:pointer;
+    border:none;padding:0;
+  }
+  .card-icon img{width:100%;height:100%;object-fit:cover;display:block;}
+  .card-icon .cam-badge{
+    position:absolute;bottom:-2px;left:-2px;
+    background:var(--surface);border:1px solid var(--line);border-radius:999px;
+    width:18px;height:18px;font-size:10px;display:flex;align-items:center;justify-content:center;
+  }
+  .card-body{flex:1;min-width:0;}
+  .card-name{font-weight:600;font-size:15px;display:flex;align-items:center;gap:6px;}
+  .edit-btn{
+    background:transparent;border:none;font-size:12px;padding:2px;cursor:pointer;
+    opacity:.55;line-height:1;display:inline-flex;align-items:center;
+  }
+  .edit-btn:active{opacity:1;}
+  .tag-example{
+    font-size:10px;font-weight:700;color:var(--gold);
+    background:var(--gold-soft);border-radius:999px;padding:2px 7px;
+  }
+  .card-meta{font-size:12px;color:var(--ink-soft);margin-top:2px;}
+  .card-actions{display:flex;gap:6px;flex:none;}
+  .act-btn{
+    width:38px;height:38px;border-radius:11px;border:1px solid var(--line);
+    background:var(--surface-soft);font-size:17px;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+    position:relative;
+  }
+  .act-btn.due{background:var(--terracotta-soft);border-color:var(--terracotta);}
+  .act-btn.due.fert{background:var(--gold-soft);border-color:var(--gold);}
+  .act-btn[disabled]{opacity:.4;cursor:default;}
+  .del-btn{
+    width:38px;height:38px;border-radius:11px;
+    background:transparent;border:1px solid transparent;color:var(--ink-soft);font-size:15px;
+    display:flex;align-items:center;justify-content:center;
+    cursor:pointer;flex:none;
+  }
+  .del-btn.confirm{
+    color:var(--terracotta);font-weight:700;font-size:12.5px;
+    background:var(--terracotta-soft);border-color:var(--terracotta);
+  }
+  .card-num{color:var(--ink-soft);font-weight:700;margin-inline-end:1px;}
+
+  .empty-note{
+    text-align:center;color:var(--ink-soft);font-size:13px;padding:22px 8px;
+  }
+
+  .week-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+  .week-nav button{
+    background:var(--surface-soft);border:1px solid var(--line);border-radius:10px;
+    width:34px;height:34px;font-size:16px;cursor:pointer;color:var(--ink);
+  }
+  .week-range{font-size:13px;color:var(--ink-soft);font-weight:600;}
+  .week-table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:16px;background:var(--surface);}
+  table.week{border-collapse:collapse;width:100%;min-width:480px;}
+  table.week th, table.week td{
+    padding:8px 6px;text-align:center;border-bottom:1px solid var(--line);font-size:12px;
+  }
+  table.week th{color:var(--ink-soft);font-weight:600;}
+  table.week th.today-col, table.week td.today-col{background:var(--green-soft);}
+  table.week td.plant-col{text-align:right;font-size:12.5px;font-weight:600;min-width:110px;}
+  table.week tr:last-child td{border-bottom:none;}
+  .cell-icons{display:flex;gap:2px;justify-content:center;}
+  .cell-icons button{
+    border:none;background:transparent;font-size:15px;cursor:pointer;padding:2px;
+    border-radius:6px;
+  }
+  .cell-icons .planned{opacity:.35;cursor:default;}
+  .cell-icons button.done-marker{opacity:.3;}
+
+  .fab{
+    position:fixed;
+    left:16px;
+    bottom:calc(20px + env(safe-area-inset-bottom,0px));
+    width:56px;height:56px;border-radius:50%;
+    background:var(--green);color:#fff;font-size:26px;border:none;
+    box-shadow:var(--shadow);cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+    z-index:30;
+  }
+  @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .fab{color:#0F1710;} }
+  :root[data-theme="dark"] .fab{color:#0F1710;}
+
+  .sheet-backdrop{
+    position:fixed;inset:0;background:rgba(20,20,15,.45);
+    display:flex;align-items:flex-end;justify-content:center;z-index:40;
+  }
+  .sheet{
+    background:var(--bg);width:100%;max-width:560px;border-radius:20px 20px 0 0;
+    padding:18px 18px calc(18px + env(safe-area-inset-bottom,0px));
+    max-height:88vh;overflow-y:auto;
+    border-top:1px solid var(--line);
+  }
+  .sheet h2{margin:0 0 14px;font-size:20px;color:var(--green-strong);}
+  .field{margin-bottom:14px;}
+  .field label{display:block;font-size:12px;font-weight:600;color:var(--ink-soft);margin-bottom:6px;}
+  .field input[type=text]{
+    width:100%;padding:11px 12px;border-radius:11px;border:1px solid var(--line);
+    background:var(--surface);color:var(--ink);font-size:15px;font-family:inherit;
+  }
+  .choice-row{display:flex;gap:8px;flex-wrap:wrap;}
+  .choice{
+    padding:9px 13px;border-radius:11px;border:1px solid var(--line);
+    background:var(--surface);color:var(--ink);font-size:13.5px;cursor:pointer;font-family:inherit;
+  }
+  .choice.selected{background:var(--green);border-color:var(--green);color:#fff;}
+  @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .choice.selected{color:#0F1710;} }
+  :root[data-theme="dark"] .choice.selected{color:#0F1710;}
+  select.field-select{
+    width:100%;padding:11px 12px;border-radius:11px;border:1px solid var(--line);
+    background:var(--surface);color:var(--ink);font-size:15px;font-family:inherit;
+  }
+  .sheet-actions{display:flex;gap:10px;margin-top:6px;}
+  .sheet-actions .btn{flex:1;}
+  .req-note{font-size:12px;color:var(--terracotta);margin-top:-8px;margin-bottom:12px;min-height:14px;}
+
+  .photo-picker{
+    width:88px;height:88px;border-radius:16px;border:1.5px dashed var(--line);
+    background:var(--surface-soft);display:flex;align-items:center;justify-content:center;
+    flex-direction:column;gap:4px;color:var(--ink-soft);font-size:11px;cursor:pointer;
+    overflow:hidden;position:relative;
+  }
+  .photo-picker img{width:100%;height:100%;object-fit:cover;position:absolute;inset:0;}
+  .photo-picker .ic{font-size:22px;}
+  .identify-note{font-size:12px;color:var(--green);margin-top:6px;min-height:14px;}
+
+  .loc-group{margin-bottom:20px;}
+  .loc-group-head{display:flex;flex-direction:column;gap:8px;margin-bottom:10px;}
+  .loc-group-title{
+    font-family:'Frank Ruhl Libre','Times New Roman',serif;
+    font-size:16px;font-weight:700;color:var(--green-strong);
+    display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  }
+  .loc-light-tag{
+    font-family:'Rubik',sans-serif;font-size:11px;font-weight:600;color:var(--ink-soft);
+    background:var(--surface-soft);border:1px solid var(--line);border-radius:999px;padding:2px 9px;
+  }
+  .loc-bulk-actions{display:flex;gap:8px;}
+  .bulk-btn{
+    flex:1;background:var(--green-soft);border:1px solid var(--line);border-radius:11px;
+    padding:8px;font-size:12.5px;font-weight:600;color:var(--green-strong);cursor:pointer;font-family:inherit;
+  }
+  .bulk-btn.fert{background:var(--gold-soft);color:var(--gold);}
+  .bulk-btn[disabled]{opacity:.45;cursor:default;}
+  .loc-chip{
+    margin-top:6px;background:transparent;border:1px dashed var(--line);border-radius:999px;
+    padding:3px 10px;font-size:11px;color:var(--ink-soft);cursor:pointer;font-family:inherit;
+  }
+  .loc-chip[disabled]{opacity:.5;cursor:default;}
+
+  .loc-row{display:flex;align-items:center;gap:6px;margin-bottom:8px;}
+  .loc-row input[type=text]{
+    flex:1;padding:9px 10px;border-radius:10px;border:1px solid var(--line);
+    background:var(--surface);color:var(--ink);font-size:13.5px;font-family:inherit;min-width:0;
+  }
+  .loc-row select{
+    padding:9px 6px;border-radius:10px;border:1px solid var(--line);
+    background:var(--surface);color:var(--ink);font-size:12.5px;font-family:inherit;flex:none;
+  }
+  .loc-row button{
+    flex:none;width:34px;height:34px;border-radius:10px;border:1px solid var(--line);
+    background:var(--surface-soft);cursor:pointer;font-size:14px;
+  }
+  .loc-row button[disabled]{opacity:.35;cursor:default;}
+
+  .backup-row{display:flex;gap:8px;margin-top:8px;}
+  .backup-row .btn{flex:1;font-size:12.5px;padding:9px 10px;}
+  .restore-summary{
+    background:var(--surface-soft);border:1px solid var(--line);border-radius:12px;
+    padding:10px 12px;font-size:13px;color:var(--ink);margin-bottom:14px;line-height:1.6;
+  }
+
+  .doctor-intro{text-align:center;color:var(--ink-soft);font-size:13px;padding:4px 8px 16px;line-height:1.6;}
+  .doctor-photo{
+    width:100%;aspect-ratio:1;max-width:280px;margin:0 auto;border-radius:20px;
+    border:1.5px dashed var(--line);background:var(--surface-soft);
+    display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;
+    color:var(--ink-soft);font-size:13px;cursor:pointer;overflow:hidden;position:relative;
+  }
+  .doctor-photo img{width:100%;height:100%;object-fit:cover;position:absolute;inset:0;}
+  .doctor-photo .ic{font-size:34px;}
+  .doctor-status{text-align:center;font-size:13px;color:var(--ink-soft);margin-top:12px;min-height:16px;}
+  .doctor-result{
+    margin-top:16px;background:var(--surface);border:1px solid var(--line);border-radius:16px;
+    padding:16px;box-shadow:var(--shadow);
+  }
+  .doctor-result .dr-badge{
+    display:inline-flex;align-items:center;gap:6px;font-weight:700;font-size:14px;
+    border-radius:999px;padding:5px 13px;margin-bottom:10px;
+  }
+  .doctor-result .dr-row{font-size:13.5px;color:var(--ink);margin-top:8px;line-height:1.6;}
+  .doctor-result .dr-row b{color:var(--ink-soft);font-weight:600;}
+  .dr-name-label{display:block;font-size:12px;color:var(--ink-soft);margin-bottom:4px;}
+  .dr-name-input{
+    width:100%;padding:10px 12px;border-radius:11px;border:1px solid var(--line);
+    background:var(--surface);color:var(--ink);font-size:15px;font-family:inherit;margin-bottom:10px;box-sizing:border-box;
+  }
+  .dr-textarea{
+    width:100%;padding:10px 12px;border-radius:11px;border:1px solid var(--line);
+    background:var(--surface);color:var(--ink);font-size:14px;font-family:inherit;box-sizing:border-box;
+    min-height:64px;resize:vertical;
+  }
+  .dr-add-form{margin-top:14px;padding-top:14px;border-top:1px dashed var(--line);display:flex;flex-direction:column;gap:10px;}
+  .dr-existing-note{
+    font-size:12.5px;color:var(--green-strong);background:var(--green-soft);
+    border-radius:10px;padding:9px 11px;line-height:1.5;
+  }
+  .doctor-again{width:100%;margin-top:14px;}
+
+  .cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+  .cal-nav button{
+    background:var(--surface-soft);border:1px solid var(--line);border-radius:10px;
+    width:34px;height:34px;font-size:16px;cursor:pointer;color:var(--ink);
+  }
+  .cal-range{font-size:15px;color:var(--green-strong);font-weight:700;font-family:'Frank Ruhl Libre','Times New Roman',serif;}
+  .cal-legend{font-size:11.5px;color:var(--ink-soft);margin-bottom:10px;}
+  .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}
+  .cal-dow{text-align:center;font-size:11px;font-weight:700;color:var(--ink-soft);padding-bottom:4px;}
+  .cal-cell{
+    aspect-ratio:1;border:1px solid var(--line);border-radius:10px;background:var(--surface);
+    display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:4px 2px;
+    cursor:pointer;font-family:inherit;gap:1px;
+  }
+  .cal-cell.empty{visibility:hidden;cursor:default;border:none;background:none;}
+  .cal-cell.today{border-color:var(--green);border-width:2px;}
+  .cal-cell.has-alert{background:var(--terracotta-soft);}
+  .cal-daynum{font-size:11.5px;font-weight:600;color:var(--ink);}
+  .cal-badge{font-size:9.5px;font-weight:700;line-height:1.3;}
+  .cal-badge.water{color:var(--green-strong);}
+  .cal-badge.alert{color:var(--danger);}
+
+  .timer-banner{
+    position:fixed;left:16px;right:16px;
+    bottom:calc(92px + env(safe-area-inset-bottom,0px));
+    background:var(--surface);border:1px solid var(--line);border-radius:16px;
+    padding:10px 14px;box-shadow:var(--shadow);z-index:35;
+    display:flex;align-items:center;gap:10px;justify-content:space-between;
+    max-width:528px;margin:0 auto;
+  }
+  .timer-banner.due{background:var(--terracotta-soft);border-color:var(--terracotta);}
+  .timer-banner .tb-text{font-size:13px;font-weight:600;color:var(--ink);}
+  .timer-banner .tb-actions{display:flex;gap:6px;flex:none;}
+  .timer-banner button{border:none;background:transparent;font-size:16px;cursor:pointer;color:var(--ink-soft);padding:4px;font-family:inherit;}
+  .timer-banner .tb-confirm{background:var(--green);color:#fff;border-radius:10px;padding:6px 12px;font-size:12.5px;font-weight:600;}
+  @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .timer-banner .tb-confirm{color:#0F1710;} }
+  :root[data-theme="dark"] .timer-banner .tb-confirm{color:#0F1710;}
+
+  .toast{
+    position:fixed;bottom:calc(90px + env(safe-area-inset-bottom,0px));left:50%;
+    transform:translateX(-50%);
+    background:var(--green-strong);color:#fff;padding:9px 18px;border-radius:999px;
+    font-size:13px;z-index:60;box-shadow:var(--shadow);
+    opacity:0;transition:opacity .25s ease;pointer-events:none;
+  }
+  .toast.show{opacity:1;}
+
+  /* ---------- area windows ---------- */
+  .area-bar{
+    display:flex;gap:8px;overflow-x:auto;
+    padding-block:2px 8px;margin-bottom:10px;
+    scrollbar-width:none;-webkit-overflow-scrolling:touch;
+  }
+  .area-bar::-webkit-scrollbar{display:none;}
+  .area-chip{
+    flex:none;display:inline-flex;align-items:center;gap:6px;
+    padding:8px 13px;border-radius:12px;border:1px solid var(--line);
+    background:var(--surface);color:var(--ink);
+    font-family:inherit;font-size:13px;font-weight:600;white-space:nowrap;cursor:pointer;
+  }
+  .area-chip.trees{background:var(--green-soft);color:var(--green-strong);}
+  .area-chip .n{font-weight:500;color:var(--ink-soft);font-variant-numeric:tabular-nums;}
+  .area-chip .due-n{
+    background:var(--terracotta);color:#fff;border-radius:999px;
+    padding:0 6px;font-size:11px;line-height:18px;font-variant-numeric:tabular-nums;
+  }
+  .area-chip.active{background:var(--green);border-color:var(--green);color:#fff;}
+  .area-chip.active .n{color:inherit;opacity:.8;}
+  @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .area-chip.active{color:#0F1710;} }
+  :root[data-theme="dark"] .area-chip.active{color:#0F1710;}
+  .area-sep{flex:none;width:1px;background:var(--line);margin-block:6px;}
+  .species{color:var(--ink);font-weight:500;}
+  .off-note{color:var(--ink-soft);}
+  .area-bar[hidden]{display:none;}
+  .undo-bar{
+    position:fixed;left:16px;right:16px;
+    top:calc(12px + env(safe-area-inset-top,0px));
+    max-width:528px;margin:0 auto;z-index:61;
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    background:var(--green-strong);color:var(--bg);
+    padding:9px 10px 9px 16px;border-radius:14px;box-shadow:var(--shadow);font-size:13px;
+  }
+  .undo-bar button{
+    border:none;background:transparent;color:inherit;font-family:inherit;
+    font-weight:700;font-size:13px;padding:4px 8px;cursor:pointer;text-decoration:underline;
+  }
+  button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--green);outline-offset:2px;}
+
+  /* ---------- sections grid ---------- */
+  .sec-summary{font-size:13px;color:var(--ink-soft);margin:2px 2px 12px;}
+  .sec-summary b{color:var(--terracotta);font-variant-numeric:tabular-nums;}
+  .sec-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}
+  .sec-tile{
+    display:flex;flex-direction:column;align-items:stretch;gap:6px;text-align:right;
+    padding:13px 14px;min-height:118px;border-radius:16px;
+    border:1px solid var(--line);background:var(--surface);box-shadow:var(--shadow);
+    color:var(--ink);font-family:inherit;cursor:pointer;
+  }
+  .sec-tile.trees{grid-column:1 / -1;min-height:0;background:var(--green-soft);}
+  .sec-tile.has-due{border-color:var(--terracotta);}
+  .sec-top{display:flex;justify-content:space-between;align-items:center;}
+  .sec-ic{font-size:20px;line-height:1;}
+  .sec-count{font-size:12px;color:var(--ink-soft);font-variant-numeric:tabular-nums;}
+  .sec-name{font-family:'Frank Ruhl Libre','Times New Roman',serif;font-weight:700;font-size:16.5px;line-height:1.25;color:var(--green-strong);text-wrap:balance;}
+  .sec-status{margin-top:auto;font-size:12px;font-weight:600;color:var(--ink-soft);}
+  .sec-status.due{color:var(--terracotta);}
+  .sec-status.ok{color:var(--green);}
+  .sec-back{
+    background:none;border:none;padding:4px 0;margin-bottom:8px;cursor:pointer;
+    color:var(--green);font-family:inherit;font-size:14px;font-weight:600;
+  }
+
+  /* ---------- compact plant list ---------- */
+  .pot-list{display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--line);border-radius:16px;overflow:hidden;box-shadow:var(--shadow);}
+  .pot-row{
+    display:flex;align-items:center;gap:12px;width:100%;padding:10px 12px;
+    border:none;border-bottom:1px solid var(--line);background:transparent;
+    text-align:right;color:var(--ink);font-family:inherit;cursor:pointer;
+  }
+  .pot-row:last-child{border-bottom:none;}
+  .pot-row:active{background:var(--surface-soft);}
+  .pot-thumb{
+    width:42px;height:42px;flex:none;border-radius:11px;overflow:hidden;
+    background:var(--green-soft);display:flex;align-items:center;justify-content:center;font-size:19px;
+  }
+  .pot-thumb img{width:100%;height:100%;object-fit:cover;display:block;}
+  .pot-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;}
+  .pot-name{font-weight:600;font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .pot-sub{font-size:12px;color:var(--ink-soft);}
+  .pot-sub.due{color:var(--terracotta);font-weight:600;}
+  .pot-dot{width:9px;height:9px;flex:none;border-radius:50%;background:var(--line);}
+  .pot-dot.due{background:var(--terracotta);}
+  .pot-dot.fert{background:var(--gold);}
+  .pot-dot.ok{background:var(--green);}
+  .pot-chev{flex:none;color:var(--ink-soft);font-size:18px;line-height:1;}
+
+  /* ---------- plant popup ---------- */
+  .pp-photo{
+    position:relative;display:flex;align-items:center;justify-content:center;
+    width:100%;max-width:100%;aspect-ratio:16 / 9;max-height:200px;padding:0;border:none;cursor:pointer;
+    border-radius:16px;overflow:hidden;background:var(--green-soft);font-size:56px;
+  }
+  .pp-photo img{width:100%;height:100%;object-fit:cover;display:block;}
+  .pp-cam{
+    position:absolute;bottom:10px;left:10px;padding:6px 12px;border-radius:999px;
+    background:var(--surface);color:var(--ink);font-size:12.5px;font-weight:600;box-shadow:var(--shadow);
+  }
+  .pp-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin:14px 0 2px;}
+  .pp-head h2{margin:0 0 3px;}
+  .pp-close{
+    flex:none;width:36px;height:36px;border-radius:50%;border:1px solid var(--line);
+    background:var(--surface);color:var(--ink-soft);font-size:15px;cursor:pointer;
+  }
+  .pp-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:12px 0;}
+  .pp-stat{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px;}
+  .pp-stat .k{font-size:11.5px;font-weight:600;color:var(--ink-soft);}
+  .pp-stat .v{font-size:14px;font-weight:600;margin-top:3px;}
+  .pp-stat .d{font-size:11.5px;color:var(--ink-soft);margin-top:2px;}
+  .pp-stat.due{border-color:var(--terracotta);background:var(--terracotta-soft);}
+  .pp-stat.due.fert{border-color:var(--gold);background:var(--gold-soft);}
+  .pp-health{
+    display:flex;flex-direction:column;gap:4px;margin-bottom:12px;padding:10px 12px;
+    border-radius:12px;border:1px solid var(--line);background:var(--surface-soft);font-size:13px;line-height:1.55;
+  }
+  .pp-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;}
+  .pp-big{padding:14px 10px;font-size:15px;}
+  .btn-fert{background:var(--gold);color:#fff;}
+  @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .btn-fert{color:#0F1710;} }
+  :root[data-theme="dark"] .btn-fert{color:#0F1710;}
+  .pp-more{display:flex;gap:8px;margin-top:10px;}
+  .pp-more .btn{flex:1;font-size:13px;padding:9px 6px;}
+  .btn-danger-ghost{background:transparent;color:var(--terracotta);border:1px solid var(--terracotta);}
+  .pp-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:12px;}
+  .pp-field{display:flex;flex-direction:column;gap:4px;font-size:11.5px;font-weight:600;color:var(--ink-soft);}
+  .pp-field input{
+    width:100%;padding:9px 10px;border-radius:10px;border:1px solid var(--line);
+    background:var(--surface);color:var(--ink);font-size:15px;font-family:inherit;
+  }
+  .pp-identify{width:100%;margin-bottom:12px;}
+
+  .hint-line{font-size:12px;color:var(--ink-soft);margin-top:6px;}
+  .pp-notes{width:100%;padding:9px 10px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-size:14px;font-family:inherit;resize:vertical;}
+  .field input[type=password]{width:100%;padding:11px 12px;border-radius:11px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-size:15px;font-family:inherit;}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="topbar">
+    <h1>גינת הבית</h1>
+    <div class="subdate" id="subdate"></div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="today">היום</button>
+    <button class="tab" data-tab="week">השבוע</button>
+    <button class="tab" data-tab="calendar">לוח שנה</button>
+    <button class="tab" data-tab="doctor">🩺 רופא</button>
+  </div>
+
+  <nav class="area-bar" id="areaBar" aria-label="בחירת אזור"></nav>
+
+  <main>
+    <section id="tab-today"></section>
+    <section id="tab-week" hidden></section>
+    <section id="tab-calendar" hidden></section>
+    <section id="tab-doctor" hidden>
+      <div class="doctor-intro">בדקו את מצב הבריאות של כל צמח — גם כזה שעדיין לא ברשימה — פשוט צלמו אותו ותקבלו זיהוי מחלות, מזיקים או מחסורים תזונתיים.</div>
+      <label class="doctor-photo" id="doctorPhotoPicker">
+        <span class="ic">🩺</span><span>צילום / העלאת תמונה לבדיקה</span>
+        <input type="file" id="doctorPhotoInput" accept="image/*" capture="environment" style="position:absolute;inset:0;opacity:0;cursor:pointer;">
+      </label>
+      <button type="button" class="btn btn-ghost" id="doctorManualBtn" style="width:100%;max-width:280px;margin:10px auto 0;display:block;">✍️ הזנה ידנית (בלי תמונה)</button>
+      <div class="doctor-status" id="doctorStatus"></div>
+      <div id="doctorResult"></div>
+    </section>
+  </main>
+
+  <button class="fab" id="fabAdd" aria-label="הוספת צמח">+</button>
+  <div class="toast" id="toast" role="status"></div>
+  <input type="file" id="cardPhotoInput" accept="image/*" capture="environment" style="display:none">
+  <input type="file" id="importInput" accept="application/json,.json" style="display:none">
+</div>
+<script id="state-data" type="application/json">{"plants":[{"id":"p-t1","name":"שסק","species":"","type":"tree","locationId":"loc-trees","lastWatered":null,"lastFertilized":null,"photoId":null,"healthCode":null,"healthLabel":"","findings":"","advice":""},{"id":"p-t2","name":"רימון שחר","species":"","type":"tree","locationId":"loc-trees","lastWatered":null,"lastFertilized":null,"photoId":null,"healthCode":null,"healthLabel":"","findings":"","advice":""},{"id":"p-t3","name":"משמש","species":"","type":"tree","locationId":"loc-trees","lastWatered":null,"lastFertilized":null,"photoId":null,"healthCode":null,"healthLabel":"","findings":"","advice":""},{"id":"p-t4","name":"ליים","species":"","type":"tree","locationId":"loc-trees","lastWatered":null,"lastFertilized":null,"photoId":null,"healthCode":null,"healthLabel":"","findings":"","advice":""},{"id":"p-t5","name":"תפוח ורד","species":"","type":"tree","locationId":"loc-trees","lastWatered":null,"lastFertilized":null,"photoId":null,"healthCode":null,"healthLabel":"","findings":"","advice":""},{"id":"p-t6","name":"רימון לבן","species":"","type":"tree","locationId":"loc-trees","lastWatered":null,"lastFertilized":null,"photoId":null,"healthCode":null,"healthLabel":"","findings":"","advice":""},{"id":"p-t7","name":"מנגו קנט","species":"","type":"tree","locationId":"loc-trees","lastWatered":null,"lastFertilized":null,"photoId":null,"healthCode":null,"healthLabel":"","findings":"","advice":""},{"id":"p-t8","name":"תפוח פינק ליידי","species":"","type":"tree","locationId":"loc-trees","lastWatered":null,"lastFertilized":null,"photoId":null,"healthCode":null,"healthLabel":"","findings":"","advice":""},{"id":"p-t9","name":"נקטרינה","species":"","type":"tree","locationId":"loc-trees","lastWatered":null,"lastFertilized":null,"photoId":null,"healthCode":null,"healthLabel":"","findings":"","advice":""},{"id":"p-t10","name":"תאנה","species":"","type":"tree","locationId":"loc-trees","lastWatered":null,"lastFertilized":null,"photoId":null,"healthCode":null,"healthLabel":"","findings":"","advice":""},{"id":"p-t11","name":"גפן לבן","species":"","type":"tree","locationId":"loc-trees","lastWatered":null,"lastFertilized":null,"photoId":null,"healthCode":null,"healthLabel":"","findings":"","advice":""},{"id":"p-t12","name":"גפן קטן","species":"","type":"tree","locationId":"loc-trees","lastWatered":null,"lastFertilized":null,"photoId":null,"healthCode":null,"healthLabel":"","findings":"","advice":""},{"id":"p-t13","name":"תפוז","species":"","type":"tree","locationId":"loc-trees","lastWatered":null,"lastFertilized":null,"photoId":null,"healthCode":null,"healthLabel":"","findings":"","advice":""},{"id":"p-t14","name":"פגויה","species":"","type":"tree","locationId":"loc-trees","lastWatered":null,"lastFertilized":null,"photoId":null,"healthCode":null,"healthLabel":"","findings":"","advice":""},{"id":"p-t15","name":"פגויה שני","species":"","type":"tree","locationId":"loc-trees","lastWatered":null,"lastFertilized":null,"photoId":null,"healthCode":null,"healthLabel":"","findings":"","advice":""},{"id":"p-t16","name":"תות","species":"","type":"tree","locationId":"loc-trees","lastWatered":null,"lastFertilized":null,"photoId":null,"healthCode":null,"healthLabel":"","findings":"","advice":""},{"id":"p-t17","name":"לימון","species":"","type":"tree","locationId":"loc-trees","lastWatered":null,"lastFertilized":null,"photoId":null,"healthCode":null,"healthLabel":"","findings":"","advice":""},{"id":"p-t18","name":"אבוקדו ריד","species":"","type":"tree","locationId":"loc-trees","lastWatered":null,"lastFertilized":null,"photoId":null,"healthCode":null,"healthLabel":"","findings":"","advice":""},{"id":"p-t19","name":"מנגו מיה","species":"","type":"tree","locationId":"loc-trees","lastWatered":null,"lastFertilized":null,"photoId":null,"healthCode":null,"healthLabel":"","findings":"","advice":""},{"id":"p-t20","name":"שזיף","species":"","type":"tree","locationId":"loc-trees","lastWatered":null,"lastFertilized":null,"photoId":null,"healthCode":null,"healthLabel":"","findings":"","advice":""},{"id":"p-t21","name":"פפיה אחד","species":"","type":"tree","locationId":"loc-trees","lastWatered":null,"lastFertilized":null,"photoId":null,"healthCode":null,"healthLabel":"","findings":"","advice":""},{"id":"p-t22","name":"פפיה שתיים","species":"","type":"tree","locationId":"loc-trees","lastWatered":null,"lastFertilized":null,"photoId":null,"healthCode":null,"healthLabel":"","findings":"","advice":""},{"id":"p-t23","name":"פסיפלורה","species":"","type":"tree","locationId":"loc-trees","lastWatered":null,"lastFertilized":null,"photoId":null,"healthCode":null,"healthLabel":"","findings":"","advice":""},{"id":"p-t24","name":"משמש שני","species":"","type":"tree","locationId":"loc-trees","lastWatered":null,"lastFertilized":null,"photoId":null,"healthCode":null,"healthLabel":"","findings":"","advice":""},{"id":"p-t25","name":"אשכולית","species":"","type":"tree","locationId":"loc-trees","lastWatered":null,"lastFertilized":null,"photoId":null,"healthCode":null,"healthLabel":"","findings":"","advice":""},{"id":"p-t26","name":"גפן איזבלה","species":"","type":"tree","locationId":"loc-trees","lastWatered":null,"lastFertilized":null,"photoId":null,"healthCode":null,"healthLabel":"","findings":"","advice":""},{"id":"p-t27","name":"רימון אדום ליצי","species":"","type":"tree","locationId":"loc-trees","lastWatered":null,"lastFertilized":null,"photoId":null,"healthCode":null,"healthLabel":"","findings":"","advice":""},{"id":"p-t28","name":"תפוח ענה","species":"","type":"tree","locationId":"loc-trees","lastWatered":null,"lastFertilized":null,"photoId":null,"healthCode":null,"healthLabel":"","findings":"","advice":""},{"id":"p-t29","name":"גויאבה","species":"","type":"tree","locationId":"loc-trees","lastWatered":null,"lastFertilized":null,"photoId":null,"healthCode":null,"healthLabel":"","findings":"","advice":""},{"id":"p-t30","name":"גויאבה תותית","species":"","type":"tree","locationId":"loc-trees","lastWatered":null,"lastFertilized":null,"photoId":null,"healthCode":null,"healthLabel":"","findings":"","advice":""},{"id":"p-t31","name":"אפרסמון","species":"","type":"tree","locationId":"loc-trees","lastWatered":null,"lastFertilized":null,"photoId":null,"healthCode":null,"healthLabel":"","findings":"","advice":""},{"id":"p-gp1","name":"עץ כסף קטן","species":"שרשרת לבבות (Ceropegia woodii)","type":"succulent","locationId":"loc-a1","lastWatered":null,"lastFertilized":null,"photoId":null,"healthCode":null,"healthLabel":"","findings":"","advice":"","waterAmount":""},{"id":"p-gp2","name":"אם האלפים","species":"פוטוס","type":"houseplant","locationId":"loc-a1","lastWatered":null,"lastFertilized":null,"photoId":null,"healthCode":null,"healthLabel":"","findings":"","advice":"","waterAmount":""},{"id":"p-gp3","name":"מוסטרה","species":"","type":"houseplant","locationId":"loc-a1","lastWatered":null,"lastFertilized":null,"photoId":null,"healthCode":null,"healthLabel":"","findings":"","advice":"","waterAmount":""},{"id":"p-gp4","name":"אלוורה בדלי מתכת","species":"אלוורה","type":"succulent","locationId":"loc-a1","lastWatered":null,"lastFertilized":null,"photoId":null,"healthCode":null,"healthLabel":"","findings":"","advice":"","waterAmount":""},{"id":"p-gp5","name":"קליסיה ועץ כסף","species":"","type":"houseplant","locationId":"loc-a1","lastWatered":null,"lastFertilized":null,"photoId":null,"healthCode":null,"healthLabel":"","findings":"","advice":"","waterAmount":""},{"id":"p-gp6","name":"ניצני פרחונית","species":"הויה","type":"succulent","locationId":"loc-a1","lastWatered":null,"lastFertilized":null,"photoId":null,"healthCode":null,"healthLabel":"","findings":"","advice":"","waterAmount":""},{"id":"p-gp7","name":"הורטיה ולבבות","species":"","type":"houseplant","locationId":"loc-a2","lastWatered":null,"lastFertilized":null,"photoId":null,"healthCode":null,"healthLabel":"","findings":"","advice":"","waterAmount":""},{"id":"p-gp8","name":"כריסמס","species":"יסמין / פרח לבן מטפס","type":"houseplant","locationId":"loc-a2","lastWatered":null,"lastFertilized":null,"photoId":null,"healthCode":null,"healthLabel":"","findings":"","advice":"","waterAmount":""},{"id":"p-gp9","name":"עץ כסף עציץ לבן קטן","species":"","type":"houseplant","locationId":"loc-a2","lastWatered":null,"lastFertilized":null,"photoId":null,"healthCode":null,"healthLabel":"","findings":"","advice":"","waterAmount":""},{"id":"p-gp10","name":"קקטוס בוטן","species":"קקטוס","type":"succulent","locationId":"loc-a2","lastWatered":null,"lastFertilized":null,"photoId":null,"healthCode":null,"healthLabel":"","findings":"","advice":"","waterAmount":""},{"id":"p-gp11","name":"ת בננות","species":"","type":"houseplant","locationId":"loc-a2","lastWatered":null,"lastFertilized":null,"photoId":null,"healthCode":null,"healthLabel":"","findings":"","advice":"","waterAmount":""},{"id":"p-gp12","name":"נור המיקרוגל","species":"לא זוהה (דקורטיבי)","type":"houseplant","locationId":"loc-a2","lastWatered":null,"lastFertilized":null,"photoId":null,"healthCode":null,"healthLabel":"","findings":"","advice":"","waterAmount":""},{"id":"p-gp13","name":"מונסטרה אדנסוניי באדן חלון הכניסה","species":"מונסטרה אדנסוניי","type":"houseplant","locationId":"loc-a3","lastWatered":null,"lastFertilized":null,"photoId":null,"healthCode":null,"healthLabel":"","findings":"","advice":"","waterAmount":""},{"id":"p-gp14","name":"עציץ תלוי בפרגולה","species":"","type":"houseplant","locationId":"loc-a3","lastWatered":null,"lastFertilized":null,"photoId":null,"healthCode":null,"healthLabel":"","findings":"","advice":"","waterAmount":""},{"id":"p-gp15","name":"סטרינג אוף פרלס תלוי בפרגולה","species":"סנסיו - מחרוזת פנינים/בננות","type":"succulent","locationId":"loc-a3","lastWatered":null,"lastFertilized":null,"photoId":null,"healthCode":null,"healthLabel":"","findings":"","advice":"","waterAmount":""},{"id":"p-gp16","name":"פלקטרנטוס תלוי בכניסה","species":"פלקטרנטוס (Swedish ivy)","type":"houseplant","locationId":"loc-a3","lastWatered":null,"lastFertilized":null,"photoId":null,"healthCode":null,"healthLabel":"","findings":"","advice":"","waterAmount":""},{"id":"p-gp17","name":"הויה לבנה תלויה על שולחן מתכת","species":"הויה","type":"succulent","locationId":"loc-a3","lastWatered":null,"lastFertilized":null,"photoId":null,"healthCode":null,"healthLabel":"","findings":"","advice":"","waterAmount":""},{"id":"p-gp18","name":"אלוורה עם דגל ישראל בשולחן הקונסולה","species":"אלוורה","type":"succulent","locationId":"loc-a4","lastWatered":null,"lastFertilized":null,"photoId":null,"healthCode":null,"healthLabel":"","findings":"","advice":"","waterAmount":""},{"id":"p-gp19","name":"קקטוס שחור בשולחן הקונסולה","species":"קקטוס זנב עכבר","type":"succulent","locationId":"loc-a4","lastWatered":null,"lastFertilized":null,"photoId":null,"healthCode":null,"healthLabel":"","findings":"","advice":"","waterAmount":""},{"id":"p-gp20","name":"קקטוס חג המולד עם גמד בשולחן הקונסולה","species":"קקטוס חג המולד","type":"succulent","locationId":"loc-a4","lastWatered":null,"lastFertilized":null,"photoId":null,"healthCode":null,"healthLabel":"","findings":"","advice":"","waterAmount":""},{"id":"p-gp21","name":"עציץ יאדה קטן על מגש כחול","species":"יאדה (Crassula ovata)","type":"succulent","locationId":"loc-a4","lastWatered":null,"lastFertilized":null,"photoId":null,"healthCode":null,"healthLabel":"","findings":"","advice":"","waterAmount":""},{"id":"p-gp22","name":"עציץ יאדה על ארון הנעליים","species":"יאדה","type":"succulent","locationId":"loc-a4","lastWatered":null,"lastFertilized":null,"photoId":null,"healthCode":null,"healthLabel":"","findings":"","advice":"","waterAmount":""},{"id":"p-gp23","name":"סינגוניום על ארון הנעליים","species":"סינגוניום","type":"houseplant","locationId":"loc-a4","lastWatered":null,"lastFertilized":null,"photoId":null,"healthCode":null,"healthLabel":"","findings":"","advice":"","waterAmount":""},{"id":"p-gp24","name":"קלנכואה באדן החלון הארוך","species":"קלנכואה","type":"succulent","locationId":"loc-a5","lastWatered":null,"lastFertilized":null,"photoId":null,"healthCode":null,"healthLabel":"","findings":"","advice":"","waterAmount":""},{"id":"p-gp25","name":"יאדה בונסאי בעציץ ירוק באדן החלון","species":"יאדה בונסאי","type":"succulent","locationId":"loc-a5","lastWatered":null,"lastFertilized":null,"photoId":null,"healthCode":null,"healthLabel":"","findings":"","advice":"","waterAmount":""},{"id":"p-gp26","name":"אדניום","species":"","type":"houseplant","locationId":"loc-a5","lastWatered":null,"lastFertilized":null,"photoId":null,"healthCode":null,"healthLabel":"","findings":"","advice":"","waterAmount":""},{"id":"p-gp27","name":"עץ כסף","species":"קרוטון","type":"houseplant","locationId":"loc-a5","lastWatered":null,"lastFertilized":null,"photoId":null,"healthCode":null,"healthLabel":"","findings":"","advice":"","waterAmount":""},{"id":"p-gp28","name":"ניצנית","species":"קרוטון","type":"houseplant","locationId":"loc-a5","lastWatered":null,"lastFertilized":null,"photoId":null,"healthCode":null,"healthLabel":"","findings":"","advice":"","waterAmount":""},{"id":"p-gp29","name":"גרניום","species":"יאדה (אוסף מעורב)","type":"succulent","locationId":"loc-a6","lastWatered":null,"lastFertilized":null,"photoId":null,"healthCode":null,"healthLabel":"","findings":"","advice":"","waterAmount":""},{"id":"p-gp30","name":"עציץ יאדה גדול בפטיו","species":"יאדה","type":"succulent","locationId":"loc-a6","lastWatered":null,"lastFertilized":null,"photoId":null,"healthCode":null,"healthLabel":"","findings":"","advice":"","waterAmount":""},{"id":"p-hp1","name":"סוקולנט וקקטוס קטנים באדן חלון המטבח","species":"סוקולנט וקקטוס מעורבים","type":"succulent","locationId":"loc-h1","lastWatered":null,"lastFertilized":null,"photoId":null,"healthCode":null,"healthLabel":"","findings":"","advice":"","waterAmount":""},{"id":"p-hp2","name":"קקטוס לבן (אכינופסיס) על המדף","species":"אכינופסיס (קקטוס פריחה)","type":"succulent","locationId":"loc-h2","lastWatered":null,"lastFertilized":null,"photoId":null,"healthCode":null,"healthLabel":"","findings":"","advice":"","waterAmount":""},{"id":"p-hp3","name":"הויה מוכתמת בכיור המטבח","species":"הויה מוכתמת (Hoya carnosa variegata)","type":"succulent","locationId":"loc-h1","lastWatered":null,"lastFertilized":null,"photoId":null,"healthCode":null,"healthLabel":"","findings":"","advice":"","waterAmount":""},{"id":"p-hp4","name":"זמיוקולקס (ZZ) ליד פינת התכשיטים","species":"זמיוקולקס (ZZ)","type":"succulent","locationId":"loc-h2","lastWatered":null,"lastFertilized":null,"photoId":null,"healthCode":null,"healthLabel":"","findings":"","advice":"","waterAmount":""},{"id":"p-hp5","name":"עץ זית בונסאי על דוכן במטבח","species":"עץ זית (בונסאי)","type":"houseplant","locationId":"loc-h1","lastWatered":null,"lastFertilized":null,"photoId":null,"healthCode":null,"healthLabel":"","findings":"","advice":"","waterAmount":""},{"id":"p-hp6","name":"זמיוקולקס (ZZ) קטן בפינה","species":"זמיוקולקס (ZZ)","type":"succulent","locationId":"loc-h2","lastWatered":null,"lastFertilized":null,"photoId":null,"healthCode":null,"healthLabel":"","findings":"","advice":"","waterAmount":""},{"id":"p-hp7","name":"פוטוס מרמור בסלסלת קש תלויה","species":"פוטוס מרמור קווין","type":"houseplant","locationId":"loc-h2","lastWatered":null,"lastFertilized":null,"photoId":null,"healthCode":null,"healthLabel":"","findings":"","advice":"","waterAmount":""},{"id":"p-hp8","name":"פוטוס זהוב מטפס על מקל","species":"פוטוס זהוב (אפוקמה)","type":"houseplant","locationId":"loc-h2","lastWatered":null,"lastFertilized":null,"photoId":null,"healthCode":null,"healthLabel":"","findings":"","advice":"","waterAmount":""},{"id":"p-hp9","name":"שלמת בית (ספטיפילום) עם פסלון בית פטרייה","species":"שלמת בית (Peace Lily)","type":"houseplant","locationId":"loc-h2","lastWatered":null,"lastFertilized":null,"photoId":null,"healthCode":null,"healthLabel":"","findings":"","advice":"","waterAmount":""},{"id":"p-hp10","name":"זנב חמור (סדום מורגנוס) בקערה על הסלסלה","species":"זנב חמור (Sedum morganianum)","type":"succulent","locationId":"loc-h2","lastWatered":null,"lastFertilized":null,"photoId":null,"healthCode":null,"healthLabel":"","findings":"","advice":"","waterAmount":""},{"id":"p-hp11","name":"סינגוניום בהיר על השולחן העגול","species":"סינגוניום","type":"houseplant","locationId":"loc-h2","lastWatered":null,"lastFertilized":null,"photoId":null,"healthCode":null,"healthLabel":"","findings":"","advice":"","waterAmount":""},{"id":"p-hp12","name":"קלנכואה קטיפה בעציץ טורקיז","species":"קלנכואה קטיפה","type":"succulent","locationId":"loc-h2","lastWatered":null,"lastFertilized":null,"photoId":null,"healthCode":null,"healthLabel":"","findings":"","advice":"","waterAmount":""},{"id":"p-hp13","name":"סוקולנט בעציץ כחול עם פרחים","species":"סוקולנט - לא זוהה במדויק","type":"succulent","locationId":"loc-h2","lastWatered":null,"lastFertilized":null,"photoId":null,"healthCode":null,"healthLabel":"","findings":"","advice":"","waterAmount":""},{"id":"p-hp14","name":"פוטוס זהוב מעל הארון הפינתי","species":"פוטוס זהוב","type":"houseplant","locationId":"loc-h2","lastWatered":null,"lastFertilized":null,"photoId":null,"healthCode":null,"healthLabel":"","findings":"","advice":"","waterAmount":""},{"id":"p-hp15","name":"כורכום סיאמי (פרחים סגולים) וזמיוקולקס על הרצפה","species":"כורכום סיאמי + זמיוקולקס","type":"houseplant","locationId":"loc-h2","lastWatered":null,"lastFertilized":null,"photoId":null,"healthCode":null,"healthLabel":"","findings":"","advice":"","waterAmount":""},{"id":"p-hp16","name":"קקטוס זנב עכבר בעציץ ירוק בצורת פרצוף","species":"קקטוס זנב עכבר (Aporocactus)","type":"succulent","locationId":"loc-h2","lastWatered":null,"lastFertilized":null,"photoId":null,"healthCode":null,"healthLabel":"","findings":"","advice":"","waterAmount":""},{"id":"p-hp17","name":"סחלב פלאנופסיס באדן החלון","species":"סחלב פלאנופסיס","type":"houseplant","locationId":"loc-h2","lastWatered":null,"lastFertilized":null,"photoId":null,"healthCode":null,"healthLabel":"","findings":"","advice":"","waterAmount":""},{"id":"p-hp18","name":"קלתאה מדליון באדן חלון המטבח","species":"קלתאה מדליון (Calathea Medallion)","type":"houseplant","locationId":"loc-h1","lastWatered":null,"lastFertilized":null,"photoId":null,"healthCode":null,"healthLabel":"","findings":"","advice":"","waterAmount":""}],"locations":[{"id":"loc-trees","name":"עצי פרי","lightLevel":"full","kind":"trees"},{"id":"loc-a1","name":"מזנון וארון מתכת","lightLevel":"covered"},{"id":"loc-a2","name":"פינת הקיר והמיקרוגל","lightLevel":"covered"},{"id":"loc-a3","name":"כניסה ופרגולה","lightLevel":"partial"},{"id":"loc-a4","name":"קונסולה וארון נעליים","lightLevel":"covered"},{"id":"loc-a5","name":"אדן החלון והשולחן הכחול","lightLevel":"partial"},{"id":"loc-a6","name":"ספסל ופטיו","lightLevel":"partial"},{"id":"loc-h1","name":"מטבח","lightLevel":"indoor"},{"id":"loc-h2","name":"סלון וחדרים","lightLevel":"indoor"}],"log":[],"weekOffset":0,"calendarOffset":0}</script>
+<script src="anthropic-sdk.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
