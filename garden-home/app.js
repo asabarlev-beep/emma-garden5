@@ -53,26 +53,26 @@
   ];
   var PRUNE_DEFAULT = { label:'עץ פרי', keys:[], months:[1,2], tip:'להסיר ענפים יבשים, חולים ומצטלבים. עצים נשירים גוזמים בחורף, ירוקי-עד באביב.' };
   var PRUNE_RECENT_DAYS = 90;
-  // Manual fertilizing of fruit trees by kind: a dose in each listed month.
+  // Trees get water-soluble 20-20-20 from a watering can: small doses, repeated
+  // every `every` days through the kind's growing window (`months`).
   var TREE_FERT_RULES = [
-    { label:'הדרים', keys:['ליים','לימון','תפוז','אשכולית','קלמנטינ','מנדרינ','פומלה','הדר'], months:[2,4,6,8], tip:'ארבע מנות בשנה, מפברואר עד אוגוסט. דשן מורכב עשיר בחנקן עם יסודות קורט (דשן להדרים, או יחס כמו 20-10-20). מספטמבר להפסיק, כדי שהצימוח יבשיל לפני החורף. הצהבה בין העורקים בעלים צעירים היא סימן לברזל, לא לעוד דשן.' },
-    { label:'אבוקדו', keys:['אבוקדו'], months:[2,4,6,8], tip:'ארבע מנות קטנות, מפברואר עד אוגוסט, עם דגש על חנקן ואשלגן. אבוקדו רגיש למלח ולשורשים שרופים: מעט בכל פעם, לפזר רחוק מהגזע ולהשקות מיד. חיפוי עבה של קומפוסט או שבבים מתחת לנוף תורם לו יותר מכל דשן.' },
-    { label:'מנגו', keys:['מנגו'], months:[4,6,9], tip:'באביב אחרי החנטה (אפריל) וביוני מנה מאוזנת. אחרי הקטיף (ספטמבר) מנה עשירה באשלגן ודלה בחנקן. מאוקטובר עד פברואר בלי חנקן, כי הוא מעודד צימוח על חשבון הפריחה.' },
-    { label:'פינק ליידי', keys:['פינק'], months:[3,5], tip:'שתי מנות: עם הלבלוב במרץ ואחרי החנטה במאי. לעץ שפורח ולא חונט לא מוסיפים חנקן: עודף חנקן דוחף צימוח ירוק על חשבון פרי. עדיף דשן מאוזן עם אשלגן, ומעט בורון אם יש לך דשן עם יסודות קורט.' },
-    { label:'תפוח', keys:['תפוח'], months:[3,5], tip:'שתי מנות: עם הלבלוב במרץ ואחרי החנטה במאי, דשן מורכב מאוזן. בלי חנקן מיוני והלאה, כדי שהפרי יקבל צבע והעץ ייכנס לתרדמה כראוי.' },
-    { label:'נשירים גלעיניים', keys:['נקטרינ','אפרסק','משמש','שזיף'], months:[2,4,6], tip:'מנה בסוף פברואר עם הלבלוב, מנה באפריל אחרי החנטה, ומנה אחרי הקטיף בקיץ לבניית הניצנים של השנה הבאה. ביולי–אוגוסט בלי חנקן. עודף חנקן מגדיל צימוח ומחלות ומקטין את איכות הפרי.' },
-    { label:'רימון', keys:['רימון'], months:[3,5], tip:'רימון צנוע בדרישות: שתי מנות, במרץ ובמאי. עודף חנקן מעודד יונקים ופיצוח פרי. בקיץ מספיק להשקות.' },
-    { label:'תאנה', keys:['תאנ'], months:[3,6], tip:'שתי מנות קטנות, במרץ וביוני. עודף חנקן מוריד את המתיקות ומעודד צימוח רך. תאנה טובה עם קומפוסט כחיפוי.' },
-    { label:'גפן', keys:['גפן','ענב','איזבלה'], months:[3,5], tip:'עם הלבלוב במרץ ואחרי החנטה במאי. מעט חנקן; לקראת ההבשלה חשוב יותר אשלגן. עודף חנקן מגדל עלווה צפופה ואשכולות חלשים.' },
-    { label:'אפרסמון', keys:['אפרסמון'], months:[3,6], tip:'שתי מנות קטנות, במרץ וביוני. האפרסמון רגיש לעודף חנקן, שגורם לנשירת פרי צעיר.' },
-    { label:'שסק', keys:['שסק'], months:[6,8], tip:'אחרי הקטיף ביוני, ושוב באוגוסט לקראת הפריחה של הסתיו. דשן מורכב מאוזן.' },
-    { label:'גויאבה תותית', keys:['תותית'], months:[3,6,9], tip:'שלוש מנות קטנות, במרץ, ביוני ובספטמבר. שיח צנוע בדרישות.' },
-    { label:'טרופיים', keys:['גויאב','פסיפלור','שעונית','פפאי','פפיה'], months:[3,5,7,9], tip:'צומחים ומניבים לאורך כל העונה: מנה קטנה כל חודשיים, ממרץ עד ספטמבר, בדשן מורכב מאוזן. בחורף להפסיק.' },
-    { label:'פיג׳ויה', keys:['פגוי','פיג׳וי','פיגוי'], months:[3,6], tip:'שתי מנות קטנות, במרץ וביוני. צנועה בדרישות; עודף דשן פוגע בפריחה.' },
-    { label:'תות', keys:['תות'], months:[3,6], tip:'שתי מנות, במרץ וביוני אחרי הקטיף. התות חזק ולא צריך הרבה.' }
+    { label:'הדרים', keys:['ליים','לימון','תפוז','אשכולית','קלמנטינ','מנדרינ','פומלה','הדר'], months:[2,3,4,5,6,7,8,9], every:21, tip:'מפברואר עד ספטמבר, כל 3 שבועות, בריכוז מלא. 20-20-20 מתאים להדרים. אם יש לך דשן מסיס עם יסודות קורט (ברזל, אבץ, מנגן), להחליף בו מנה אחת בחודש. מאוקטובר לעצור, כדי שהצימוח יבשיל לפני החורף.' },
+    { label:'אבוקדו', keys:['אבוקדו'], months:[2,3,4,5,6,7,8,9], every:21, half:true, tip:'מפברואר עד ספטמבר, כל 3 שבועות, ב**חצי ריכוז**. אבוקדו רגיש למלחים ולשורשים שרופים: להשקות קודם במים רגילים, ורק אז את הדשן. חיפוי עבה של קומפוסט או שבבים מתחת לנוף תורם לו יותר מכל דשן.' },
+    { label:'מנגו', keys:['מנגו'], months:[3,4,5,6,7], every:21, tip:'ממרץ עד יולי, כל 3 שבועות. מאוגוסט לא נותנים 20-20-20: החנקן מעודד צימוח לפני הפריחה של החורף. אם יש לך דשן מסיס עשיר באשלגן ("דשן לפריחה ופרי"), מנה אחת ממנו אחרי הקטיף.' },
+    { label:'פינק ליידי', keys:['פינק'], months:[3,4,5], every:21, half:true, tip:'ממרץ עד מאי, כל 3 שבועות, ב**חצי ריכוז**. לעץ שפורח ולא חונט לא מגבירים דישון: עודף חנקן דוחף צימוח ירוק על חשבון פרי. מיוני לעצור.' },
+    { label:'תפוח', keys:['תפוח'], months:[3,4,5,6], every:21, tip:'ממרץ עד יוני, כל 3 שבועות. מיולי לעצור, כדי שהפרי יקבל צבע והעץ ייכנס לתרדמה כראוי.' },
+    { label:'נשירים גלעיניים', keys:['נקטרינ','אפרסק','משמש','שזיף'], months:[2,3,4,5,6], every:21, tip:'מסוף פברואר עד יוני, כל 3 שבועות, כולל מנה אחרי הקטיף לבניית הניצנים של השנה הבאה. ביולי–אוגוסט לעצור. עודף חנקן מגדיל צימוח ומחלות ומקטין את איכות הפרי.' },
+    { label:'רימון', keys:['רימון'], months:[3,4,5,6], every:30, tip:'ממרץ עד יוני, פעם בחודש. רימון צנוע בדרישות; עודף חנקן מעודד יונקים ופיצוח פרי.' },
+    { label:'תאנה', keys:['תאנ'], months:[3,4,5,6,7], every:30, tip:'ממרץ עד יולי, פעם בחודש. עודף חנקן מוריד את המתיקות ומעודד צימוח רך.' },
+    { label:'גפן', keys:['גפן','ענב','איזבלה'], months:[3,4,5,6], every:30, tip:'ממרץ עד יוני, פעם בחודש. לעצור כשהענבים מתחילים להתרכך ולשנות צבע; עודף חנקן מגדל עלווה צפופה ואשכולות חלשים.' },
+    { label:'אפרסמון', keys:['אפרסמון'], months:[3,4,5,6], every:30, half:true, tip:'ממרץ עד יוני, פעם בחודש, ב**חצי ריכוז**. האפרסמון רגיש לעודף חנקן, שגורם לנשירת פרי צעיר.' },
+    { label:'שסק', keys:['שסק'], months:[6,7,8,9], every:30, tip:'מיוני (אחרי הקטיף) עד ספטמבר, פעם בחודש, לקראת הפריחה של הסתיו. בזמן הפריחה והפרי לעצור.' },
+    { label:'גויאבה תותית', keys:['תותית'], months:[3,4,5,6,7,8,9], every:30, tip:'ממרץ עד ספטמבר, פעם בחודש. שיח צנוע בדרישות.' },
+    { label:'טרופיים', keys:['גויאב','פסיפלור','שעונית','פפאי','פפיה'], months:[3,4,5,6,7,8,9,10], every:14, tip:'צומחים ומניבים לאורך כל העונה: ממרץ עד אוקטובר, כל שבועיים. בחורף לעצור.' },
+    { label:'פיג׳ויה', keys:['פגוי','פיג׳וי','פיגוי'], months:[3,4,5,6,7], every:30, half:true, tip:'ממרץ עד יולי, פעם בחודש, ב**חצי ריכוז**. עודף דשן פוגע בפריחה.' },
+    { label:'תות', keys:['תות'], months:[3,4,5,6,7], every:30, tip:'ממרץ עד יולי, פעם בחודש. התות חזק ולא צריך הרבה.' }
   ];
-  var TREE_FERT_DEFAULT = { label:'עץ פרי', keys:[], months:[3,6], tip:'שתי מנות של דשן מורכב מאוזן, באביב ובתחילת הקיץ.' };
-  var FERT_RECENT_DAYS = 25;
+  var TREE_FERT_DEFAULT = { label:'עץ פרי', keys:[], months:[3,4,5,6,7,8], every:30, tip:'ממרץ עד אוגוסט, פעם בחודש.' };
   function matchRule(p, rules, fallback){
     var hay = (p.name || '') + ' ' + (p.species || '');
     for (var i=0;i<rules.length;i++){
@@ -81,6 +81,26 @@
     return fallback;
   }
   function treeFertRule(p){ return matchRule(p, TREE_FERT_RULES, TREE_FERT_DEFAULT); }
+  function treeFertDates(p, from, to){
+    var r = treeFertRule(p), f = fertDue(p), t = today(), out = [];
+    function inWin(d){ return r.months.indexOf(d.getMonth()+1) !== -1; }
+    function nextWindowStart(d){
+      for (var k=1;k<=12;k++){ var m = new Date(d.getFullYear(), d.getMonth()+k, 1); if (inWin(m)) return m; }
+      return null;
+    }
+    var cur = f.off ? nextWindowStart(t) : addDays(t, Math.max(0, f.daysUntil));
+    var guard = 0;
+    while (cur && cur <= to && guard++ < 200){
+      if (!inWin(cur)){ cur = nextWindowStart(cur); continue; }
+      if (cur >= from) out.push(cur);
+      cur = addDays(cur, r.every);
+    }
+    return out;
+  }
+  function monthRangeText(months){
+    if (!months.length) return '';
+    return months.length === 1 ? MONTH_NAMES[months[0]-1] : MONTH_NAMES[months[0]-1] + '–' + MONTH_NAMES[months[months.length-1]-1];
+  }
   // A reminder on the 1st of each month listed (and on the first of each season
   // when onlySeasonStart), plus today when it is due now.
   function monthReminderDates(months, from, to, dueNow, onlySeasonStart){
@@ -152,10 +172,13 @@
   }
   function fertDue(p){
     if (p.type === 'tree'){
-      var r = treeFertRule(p), m = today().getMonth()+1;
+      var r = treeFertRule(p), t = today(), m = t.getMonth()+1;
       if (r.months.indexOf(m) === -1) return { off:true, next: nextPruneMonth(r, m), tree:true };
-      if (p.lastFertilized && diffDays(today(), parse(p.lastFertilized)) < FERT_RECENT_DAYS) return { off:true, recent:true, tree:true };
-      return { daysUntil:0, tree:true };
+      if (!p.lastFertilized) return { daysUntil:0, tree:true };
+      var nextDose = addDays(parse(p.lastFertilized), r.every);
+      if (nextDose <= t) return { daysUntil: diffDays(nextDose, t), tree:true };
+      if (r.months.indexOf(nextDose.getMonth()+1) === -1) return { off:true, next: nextPruneMonth(r, nextDose.getMonth()+1), tree:true };
+      return { daysUntil: diffDays(nextDose, t), tree:true };
     }
     if (fertOffNow(p)) return { off:true };
     if (!p.lastFertilized) return { unknown:true };
@@ -197,7 +220,7 @@
   function careDue(p, kind){ return kind==='water' ? waterDue(p) : kind==='iron' ? ironDue(p) : fertDue(p); }
 
   /* ---------- state ---------- */
-  var APP_VERSION = '8';
+  var APP_VERSION = '9';
   var STATE_KEY = 'gardenHome_state_v1';
   var state = null;
   try { state = JSON.parse(localStorage.getItem(STATE_KEY) || 'null'); } catch(e){ state = null; }
@@ -724,9 +747,9 @@
   }
   function fertText(f){
     if (f.tree){
-      if (f.recent) return 'דושן החודש ✓';
       if (f.off) return 'הדישון הבא ב' + MONTH_NAMES[f.next-1];
-      return 'לדשן החודש';
+      if (f.daysUntil <= 0) return 'לדשן עכשיו';
+      return 'דישון בעוד ' + f.daysUntil + ' ימים';
     }
     if (f.off) return 'לא מדשנים בחורף';
     if (f.unknown) return 'טרם סומן דישון';
@@ -792,6 +815,7 @@
       if (isDue(g)) todo.push('עונת גיזום');
       var nextBits = [];
       if (f.next) nextBits.push('דישון ב' + MONTH_NAMES[f.next-1]);
+      else if (f.daysUntil > 0) nextBits.push('דישון בעוד ' + f.daysUntil + ' ימים');
       if (g.next) nextBits.push('גיזום ב' + MONTH_NAMES[g.next-1]);
       sub = todo.length ? todo.join(' · ') : (nextBits.length ? nextBits.join(' · ') : '✓ אין משימות כרגע');
     } else {
@@ -857,14 +881,15 @@
       '</div>' +
       '<div class="pp-stats">' +
         (isTree ? '' : '<div class="pp-stat' + (isDue(w)?' due':'') + '"><div class="k">💧 השקיה הבאה</div><div class="v">' + waterText(w) + '</div><div class="d">' + nextWaterDateText(p) + 'אחרונה: ' + relDay(p.lastWatered) + '</div></div>') +
-        '<div class="pp-stat' + (isDue(f)?' due fert':'') + '"><div class="k">🌱 דישון</div><div class="v">' + fertText(f) + '</div><div class="d">אחרון: ' + relDay(p.lastFertilized) + (isTree ? ' · ' + frule.months.map(function(m){ return MONTH_NAMES[m-1]; }).join(', ') : '') + '</div></div>' +
+        '<div class="pp-stat' + (isDue(f)?' due fert':'') + '"><div class="k">🌱 דישון</div><div class="v">' + fertText(f) + '</div><div class="d">אחרון: ' + relDay(p.lastFertilized) + (isTree ? ' · ' + monthRangeText(frule.months) + ', כל ' + frule.every + ' יום' : '') + '</div></div>' +
         (isTree ? '<div class="pp-stat iron-stat' + (isDue(r)?' due iron':'') + '"><div class="k">🔩 ברזל (כלאט)</div><div class="v">' + ironText(r) + '</div><div class="d">אחרון: ' + relDay(p.lastIron) + ' · כל ' + IRON_EVERY + ' יום</div></div>' +
           '<div class="pp-stat wide' + (isDue(g)?' due prune':'') + '"><div class="k">✂️ גיזום · ' + escapeHtml(rule.label) + '</div><div class="v">' + pruneText(g) + '</div><div class="d">אחרון: ' + relDay(p.lastPruned) + (rule.months.length ? ' · עונה: ' + pruneMonthsText(rule) : '') + '</div></div>' : '') +
       '</div>' +
       '<button type="button" class="btn btn-ghost pp-identify" data-pp="identify">🔍 זהה את הצמח מתמונה</button>' +
       (isTree ? '<details class="pp-prune pp-fertadv"' + (isDue(f) ? ' open' : '') + '><summary>🌱 המלצת דישון ל' + escapeHtml(frule.label) + '</summary>' +
-          '<p>' + escapeHtml(frule.tip).replace(/\d+(?:[-–]\d+)+/g, function(x){ return '<bdi dir="ltr">' + x + '</bdi>'; }) + '</p>' +
-          '<p class="pp-prune-always">כמות למנה, בדשן מורכב גרגרי: לעץ צעיר (עד 5 שנים) כ-<bdi dir="ltr">50–100</bdi> גרם, לעץ בוגר כ-<bdi dir="ltr">200–300</bdi> גרם. לפזר בטבעת מתחת לקצה הנוף, לא צמוד לגזע, ולהשקות מייד. עדיף מעט ולעתים קרובות מאשר הרבה בבת אחת.</p></details>' : '') +
+          '<p>' + escapeHtml(frule.tip).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/\d+(?:[-–]\d+)+/g, function(x){ return '<bdi dir="ltr">' + x + '</bdi>'; }) + '</p>' +
+          '<p class="pp-dose"><b>מינון במשפך 10 ליטר:</b> ' + (frule.half ? 'חצי כף (כ-<bdi dir="ltr">7</bdi> גרם) של <bdi dir="ltr">20-20-20</bdi>' : 'כף גדושה (כ-<bdi dir="ltr">15</bdi> גרם) של <bdi dir="ltr">20-20-20</bdi>') + '. לעץ צעיר (עד 5 שנים) משפך אחד, לעץ בוגר 2–3 משפכים.</p>' +
+          '<p class="pp-prune-always">לשפוך על אדמה לחה, בטבעת מתחת לקצה הנוף, לא על העלים ולא צמוד לגזע. לא להגדיל ריכוז: אם צריך יותר, לחזור לעתים קרובות יותר. דשן נוזלי נשטף מהר, ולכן התזכורת חוזרת כל כמה שבועות ולא פעמיים בשנה.</p></details>' : '') +
       (isTree ? '<details class="pp-prune"' + (isDue(g) ? ' open' : '') + '><summary>✂️ המלצת גיזום ל' + escapeHtml(rule.label) + '</summary>' +
           '<p>' + escapeHtml(rule.tip) + '</p>' +
           '<p class="pp-prune-always">תמיד: מזמרה חדה ומחוטאת, חתך נקי מעל עין שפונה החוצה, וענפים יבשים וחולים אפשר להסיר בכל עונה.</p></details>' : '') +
@@ -1002,7 +1027,7 @@
     var rows = plants.map(function(p){
       var waterDates = p.type === 'tree' ? [] : scheduledDates(p.lastWatered, waterInterval, p, false);
       var fertDates = p.type === 'tree'
-        ? monthReminderDates(treeFertRule(p).months, wStart, days[6], isDue(fertDue(p)), false).map(fmt)
+        ? treeFertDates(p, wStart, days[6]).map(fmt)
         : scheduledDates(p.lastFertilized, fertInterval, p, true);
       var ironDates = p.type === 'tree' ? scheduledDates(p.lastIron, ironInterval, p, false, true) : [];
       var cells = days.map(function(d){
@@ -1081,8 +1106,7 @@
           .forEach(function(d){ add(d, 'fert', p.id); });
         return;
       }
-      monthReminderDates(treeFertRule(p).months, from, to, isDue(fertDue(p)), false)
-        .forEach(function(d){ add(d, 'fert', p.id); });
+      treeFertDates(p, from, to).forEach(function(d){ add(d, 'fert', p.id); });
       projectDates(p.lastIron, ironInterval, ironOffAt, from, to)
         .forEach(function(d){ add(d, 'iron', p.id); });
       var rule = pruneRule(p);
