@@ -442,6 +442,17 @@
   .cal-group.plan.prune{color:var(--prune);}
   .cal-group.done{color:var(--ink-soft);}
   .cal-group.alert{color:var(--danger);}
+  .cal-areas{display:flex;flex-direction:column;gap:8px;}
+  .cal-area{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px;}
+  .cal-area-main{flex:1;min-width:0;}
+  .cal-area-name{font-size:14px;font-weight:700;}
+  .cal-area-sub{font-size:12px;color:var(--ink-soft);margin-top:2px;}
+  .cal-area-list{font-size:12px;color:var(--ink-soft);margin-top:4px;line-height:1.5;}
+  .cal-area-list summary{cursor:pointer;color:var(--green);font-weight:600;}
+  .cal-area-btn{flex:none;border:1px solid var(--line);background:var(--surface-soft);color:var(--ink);border-radius:10px;padding:8px 12px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;}
+  .cal-area-btn.water{background:var(--green);border-color:var(--green);color:#fff;}
+  @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .cal-area-btn.water{color:#0F1710;} }
+  :root[data-theme="dark"] .cal-area-btn.water{color:#0F1710;}
   .cal-chips{display:flex;flex-wrap:wrap;gap:6px;}
   .cal-chip{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:6px 10px;font-size:13px;font-family:inherit;cursor:pointer;}
   .cal-badge.water{color:var(--green-strong);}
