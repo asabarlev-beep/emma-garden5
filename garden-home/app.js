@@ -101,7 +101,7 @@
   function careDue(p, kind){ return kind==='water' ? waterDue(p) : kind==='iron' ? ironDue(p) : fertDue(p); }
 
   /* ---------- state ---------- */
-  var APP_VERSION = '4';
+  var APP_VERSION = '5';
   var STATE_KEY = 'gardenHome_state_v1';
   var state = null;
   try { state = JSON.parse(localStorage.getItem(STATE_KEY) || 'null'); } catch(e){ state = null; }
@@ -464,16 +464,24 @@
   }
   function applyUndo(){
     if (!lastUndo) return;
+    if (lastUndo.snapshot){
+      state.locations = lastUndo.snapshot.locations;
+      state.plants = lastUndo.snapshot.plants;
+      state.log = lastUndo.snapshot.log;
+      lastUndo.changes = [];
+    }
     lastUndo.changes.forEach(function(c){
       var p = findPlant(c.id);
       if (p) p[c.field] = c.prev;
     });
     if (lastUndo.logAdded) state.log.splice(state.log.length - lastUndo.logAdded, lastUndo.logAdded);
     if (lastUndo.startedTimer) stopWaterTimer(true);
+    var refreshAreas = !!lastUndo.snapshot;
     lastUndo = null;
     hideUndo();
     saveState();
     renderAll();
+    if (refreshAreas && document.getElementById('sheetBackdrop')){ areaSheet = { mode:'list', id:null, back:'list' }; renderAreaSheet(); }
     toast('בוטל');
   }
 
@@ -1220,12 +1228,14 @@
         (isTrees ? '' :
           '<button type="button" class="am-mini" data-am="up" data-loc="' + l.id + '" aria-label="הזזה למעלה"' + (potIdx === 0 ? ' disabled' : '') + '>▲</button>' +
           '<button type="button" class="am-mini" data-am="down" data-loc="' + l.id + '" aria-label="הזזה למטה"' + (potIdx === potLocations().length - 1 ? ' disabled' : '') + '>▼</button>') +
-        '<button type="button" class="btn btn-ghost am-edit" data-am="edit" data-loc="' + l.id + '">✏️ עריכה</button>' +
+        (isTrees ? '<button type="button" class="btn btn-ghost am-edit" data-am="edit" data-loc="' + l.id + '">✏️ עריכה</button>'
+          : '<button type="button" class="am-mini am-pen" data-am="edit" data-loc="' + l.id + '" aria-label="עריכת ' + escapeHtml(l.name) + '">✏️</button>') +
+        (isTrees ? '' : '<button type="button" class="am-mini am-del" data-am="delete" data-loc="' + l.id + '" aria-label="מחיקת ' + escapeHtml(l.name) + '">🗑</button>') +
       '</div>';
     }).join('');
     return '<div class="sheet">' +
       '<h2>ניהול אזורים</h2>' +
-      '<p class="am-hint">לחצו "עריכה" כדי לשנות שם, כמות אור, ולהוסיף או להעביר צמחים בין אזורים. החצים משנים את הסדר במסך הראשי.</p>' +
+      '<p class="am-hint">✏️ משנה שם, כמות אור ואילו צמחים באזור. החצים משנים את הסדר במסך הראשי. 🗑 מוחק אזור.</p>' +
       '<div class="am-list">' + cards + '</div>' +
       '<div class="sheet-actions" style="margin-top:14px;">' +
         '<button type="button" class="btn btn-ghost" data-am="close">סגירה</button>' +
@@ -1271,17 +1281,27 @@
       '</div>' +
     '</div>';
   }
+  var deleteMode = 'move'; // 'move' = keep the plants elsewhere, 'all' = delete them with the area
   function areaDeleteHtml(id){
     var l = getLocation(id), n = plantsInArea(id).length;
     var others = potLocations().filter(function(o){ return o.id !== id; });
+    if (!others.length) deleteMode = 'all';
+    var all = deleteMode === 'all';
     return '<div class="sheet">' +
       '<h2>מחיקת "' + escapeHtml(l.name) + '"</h2>' +
-      (n ? '<div class="field"><label for="amDest">לאן להעביר את ' + n + ' העציצים שבאזור?</label>' +
-          '<select class="field-select" id="amDest">' + others.map(function(o){ return '<option value="' + o.id + '">' + escapeHtml(o.name) + '</option>'; }).join('') + '</select></div>'
+      (n ? '<div class="field"><label>מה לעשות עם ' + n + ' העציצים שבאזור?</label>' +
+          '<div class="choice-row" id="amDelMode">' +
+            (others.length ? '<button type="button" class="choice' + (all ? '' : ' selected') + '" data-val="move">📦 להעביר לאזור אחר</button>' : '') +
+            '<button type="button" class="choice danger' + (all ? ' selected' : '') + '" data-val="all">🗑 למחוק גם אותם</button>' +
+          '</div></div>' +
+          (others.length ? '<div class="field" id="amDestWrap"' + (all ? ' hidden' : '') + '><label for="amDest">לאן להעביר?</label>' +
+            '<select class="field-select" id="amDest">' + others.map(function(o){ return '<option value="' + o.id + '">' + escapeHtml(o.name) + '</option>'; }).join('') + '</select></div>' : '') +
+          '<p class="am-hint" id="amAllNote"' + (all ? '' : ' hidden') + '>האזור, ' + n + ' העציצים שבו וכל היסטוריית ההשקיה שלהם יימחקו. אפשר לבטל מייד אחרי.</p>'
         : '<p class="am-hint">האזור ריק. המחיקה לא משפיעה על אף צמח.</p>') +
       '<div class="sheet-actions">' +
         '<button type="button" class="btn btn-ghost" data-am="edit" data-loc="' + id + '">ביטול</button>' +
-        '<button type="button" class="btn btn-primary" data-am="confirmDelete" data-loc="' + id + '" style="background:var(--terracotta);"' + (n && !others.length ? ' disabled' : '') + '>מחיקת האזור</button>' +
+        '<button type="button" class="btn btn-primary" id="amConfirmDel" data-am="confirmDelete" data-loc="' + id + '" style="background:var(--terracotta);">' +
+          (n && all ? 'מחיקת האזור והעציצים' : 'מחיקת האזור') + '</button>' +
       '</div>' +
     '</div>';
   }
@@ -1326,6 +1346,16 @@
       Array.prototype.forEach.call(choice.parentElement.children, function(b){ b.classList.toggle('selected', b === choice); });
       return;
     }
+    var modeBtn = e.target.closest('#amDelMode .choice');
+    if (modeBtn){
+      deleteMode = modeBtn.dataset.val;
+      Array.prototype.forEach.call(modeBtn.parentElement.children, function(b){ b.classList.toggle('selected', b === modeBtn); });
+      var dw = document.getElementById('amDestWrap'), an = document.getElementById('amAllNote'), cb = document.getElementById('amConfirmDel');
+      if (dw) dw.hidden = deleteMode === 'all';
+      if (an) an.hidden = deleteMode !== 'all';
+      if (cb) cb.textContent = deleteMode === 'all' ? 'מחיקת האזור והעציצים' : 'מחיקת האזור';
+      return;
+    }
     var btn = e.target.closest('[data-am]'); if (!btn || btn.disabled) return;
     var act = btn.dataset.am, id = btn.dataset.loc;
     if (act === 'close'){ closeSheet(); return; }
@@ -1335,7 +1365,7 @@
     }
     if (act === 'new'){ areaSheet = { mode:'edit', id:null, back:'list' }; renderAreaSheet(); return; }
     if (act === 'edit'){ areaSheet = { mode:'edit', id:id, back:areaSheet.back }; renderAreaSheet(); return; }
-    if (act === 'delete'){ areaSheet = { mode:'delete', id:id, back:areaSheet.back }; renderAreaSheet(); return; }
+    if (act === 'delete'){ deleteMode = 'move'; areaSheet = { mode:'delete', id:id, back:areaSheet.back }; renderAreaSheet(); return; }
     if (act === 'save'){ saveAreaEdit(); return; }
     if (act === 'up' || act === 'down'){
       var arr = state.locations, i = arr.findIndex(function(x){ return x.id === id; });
@@ -1348,12 +1378,21 @@
       var destEl = document.getElementById('amDest');
       var dest = destEl ? destEl.value : null;
       var gone = getLocation(id).name;
-      plantsInArea(id).forEach(function(p){ p.locationId = dest; });
+      var inArea = plantsInArea(id);
+      var removeAll = inArea.length && (deleteMode === 'all' || !dest);
+      var snapshot = JSON.parse(JSON.stringify({ locations: state.locations, plants: state.plants, log: state.log }));
+      if (removeAll){
+        var ids = {}; inArea.forEach(function(p){ ids[p.id] = true; });
+        state.plants = state.plants.filter(function(p){ return !ids[p.id]; });
+        state.log = state.log.filter(function(ev){ return !ids[ev.plantId]; });
+      } else {
+        inArea.forEach(function(p){ p.locationId = dest; });
+      }
       state.locations = state.locations.filter(function(l){ return l.id !== id; });
       if (!validArea(selectedArea)) setArea((potLocations()[0] || state.locations[0]).id);
       if (openArea && !validArea(openArea)) setOpenArea(null);
       saveState(); renderAll();
-      toast('האזור "' + gone + '" נמחק');
+      showUndo('האזור "' + gone + '" נמחק' + (removeAll ? ' עם ' + inArea.length + ' עציצים' : ''), { snapshot: snapshot });
       areaSheet = { mode:'list', id:null, back:'list' }; renderAreaSheet();
     }
   }
