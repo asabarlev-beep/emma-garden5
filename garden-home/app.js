@@ -197,7 +197,7 @@
   function careDue(p, kind){ return kind==='water' ? waterDue(p) : kind==='iron' ? ironDue(p) : fertDue(p); }
 
   /* ---------- state ---------- */
-  var APP_VERSION = '7';
+  var APP_VERSION = '8';
   var STATE_KEY = 'gardenHome_state_v1';
   var state = null;
   try { state = JSON.parse(localStorage.getItem(STATE_KEY) || 'null'); } catch(e){ state = null; }
@@ -1130,7 +1130,8 @@
 
     function badges(set, cls){
       return CAL_KINDS.map(function(c){
-        return set[c.k].length ? '<span class="cal-badge ' + c.k + (cls ? ' ' + cls : '') + '">' + c.ic + set[c.k].length + '</span>' : '';
+        var n = c.k === 'water' ? areasOf(set.water).length : set[c.k].length;
+        return n ? '<span class="cal-badge ' + c.k + (cls ? ' ' + cls : '') + '">' + c.ic + n + '</span>' : '';
       }).join('');
     }
     function count(set){ return CAL_KINDS.reduce(function(n, c){ return n + set[c.k].length; }, 0); }
@@ -1140,7 +1141,7 @@
         '<div class="cal-range">' + MONTH_NAMES[month] + ' ' + year + '</div>' +
         '<button type="button" data-cnav="next" aria-label="חודש הבא">›</button>' +
       '</div>' +
-      '<div class="cal-legend">💧 השקיית עציצים · 🌱 דישון · 🔩 ברזל · ✂️ גיזום. מהיום והלאה: התראות על מה שצריך לעשות. ימים שעברו: מה שבוצע, ו-⚠ לצמחים שהתאחרה להם השקיה. לחיצה על יום מציגה את הצמחים.</div>';
+      '<div class="cal-legend">💧 אזורי עציצים להשקות · 🌱 דישון · 🔩 ברזל · ✂️ גיזום. מהיום והלאה: התראות על מה שצריך לעשות. ימים שעברו: מה שבוצע, ו-⚠ לצמחים שהתאחרה להם השקיה. לחיצה על יום מציגה את הצמחים.</div>';
     var grid = '<div class="cal-grid">' + DAY_LETTERS.map(function(l){ return '<div class="cal-dow">'+l+'</div>'; }).join('');
     for (var i=0;i<firstDow;i++) grid += '<div class="cal-cell empty"></div>';
     for (var day=1; day<=numDays; day++){
@@ -1162,6 +1163,28 @@
     grid += '</div>';
     document.getElementById('tab-calendar').innerHTML = head + grid;
   }
+  // Pot ids grouped by area, in the order areas appear in the app.
+  function areasOf(ids){
+    var groups = [];
+    state.locations.forEach(function(l){
+      var mine = ids.filter(function(id){ var p = findPlant(id); return p && p.locationId === l.id; });
+      if (mine.length) groups.push({ loc:l, ids:mine });
+    });
+    return groups;
+  }
+  function areaCards(ids, mode){
+    return '<div class="cal-areas">' + areasOf(ids).map(function(g){
+      var total = plantsInArea(g.loc.id).length;
+      var names = g.ids.map(function(id){ return escapeHtml(findPlant(id).name); }).join(' · ');
+      var action = mode === 'today' ? '<button type="button" class="cal-area-btn water" data-cal-water="' + g.loc.id + '">💧 השקיתי</button>'
+        : mode === 'plan' ? '<button type="button" class="cal-area-btn" data-cal-area="' + g.loc.id + '">פתיחה</button>' : '';
+      return '<div class="cal-area">' +
+        '<div class="cal-area-main"><div class="cal-area-name">' + (LIGHT_ICON[g.loc.lightLevel] || '📍') + ' ' + escapeHtml(g.loc.name) + '</div>' +
+          '<div class="cal-area-sub">' + (g.ids.length === total ? 'כל ' + total + ' העציצים' : g.ids.length + ' מתוך ' + total + ' עציצים') + '</div>' +
+          '<details class="cal-area-list"><summary>אילו עציצים</summary>' + names + '</details></div>' +
+        action + '</div>';
+    }).join('') + '</div>';
+  }
   function plantChips(ids){
     return '<div class="cal-chips">' + ids.map(function(id){
       var p = findPlant(id); if (!p) return '';
@@ -1176,14 +1199,24 @@
     if (dd){
       if (ds >= ts){
         CAL_KINDS.forEach(function(c){
-          if (dd.plan[c.k].length) body += '<div class="cal-group plan ' + c.k + '">' + c.ic + ' ' + c.plan + ' (' + dd.plan[c.k].length + ')</div>' + plantChips(dd.plan[c.k]);
+          if (!dd.plan[c.k].length) return;
+          if (c.k === 'water'){
+            body += '<div class="cal-group plan water">💧 להשקות (' + areasOf(dd.plan.water).length + ' אזורים)</div>' + areaCards(dd.plan.water, ds === ts ? 'today' : 'plan');
+            return;
+          }
+          body += '<div class="cal-group plan ' + c.k + '">' + c.ic + ' ' + c.plan + ' (' + dd.plan[c.k].length + ')</div>' + plantChips(dd.plan[c.k]);
         });
       }
       if (ds <= ts){
         CAL_KINDS.forEach(function(c){
-          if (dd.done[c.k].length) body += '<div class="cal-group done">✓ ' + c.ic + ' ' + c.done + ' (' + dd.done[c.k].length + ')</div>' + plantChips(dd.done[c.k]);
+          if (!dd.done[c.k].length) return;
+          if (c.k === 'water'){
+            body += '<div class="cal-group done">✓ 💧 הושקו (' + areasOf(dd.done.water).length + ' אזורים)</div>' + areaCards(dd.done.water, 'done');
+            return;
+          }
+          body += '<div class="cal-group done">✓ ' + c.ic + ' ' + c.done + ' (' + dd.done[c.k].length + ')</div>' + plantChips(dd.done[c.k]);
         });
-        if (dd.alerts.length) body += '<div class="cal-group alert">⚠ התאחרה השקיה (' + dd.alerts.length + ')</div>' + plantChips(dd.alerts);
+        if (dd.alerts.length) body += '<div class="cal-group alert">⚠ התאחרה השקיה (' + areasOf(dd.alerts).length + ' אזורים)</div>' + areaCards(dd.alerts, 'done');
       }
     }
     if (!body) body = '<p class="am-hint">' + (ds >= ts ? 'אין משימות ביום הזה.' : 'לא נרשמה פעילות ביום הזה.') + '</p>';
@@ -1192,14 +1225,29 @@
     wrap.className = 'sheet-backdrop';
     wrap.id = 'sheetBackdrop';
     wrap.innerHTML = '<div class="sheet"><h2>' + label + '</h2>' +
-      (ds === ts && dd && CAL_KINDS.some(function(c){ return dd.plan[c.k].length; }) ? '<p class="am-hint">כולל משימות שהתאחרו. לחיצה על צמח פותחת אותו לסימון.</p>' : '') +
+      (ds === ts && dd && CAL_KINDS.some(function(c){ return dd.plan[c.k].length; }) ? '<p class="am-hint">כולל משימות שהתאחרו. "השקיתי" מסמן את כל האזור; לחיצה על עץ או עציץ פותחת אותו לסימון.</p>' : '') +
       body +
       '<div class="sheet-actions" style="margin-top:14px;"><button type="button" class="btn btn-ghost" data-cal-close="1">סגירה</button></div></div>';
     document.getElementById('app').appendChild(wrap);
     wrap.addEventListener('click', function(e){
       if (e.target === wrap || e.target.closest('[data-cal-close]')){ closeSheet(); return; }
       var chip = e.target.closest('[data-cal-plant]');
-      if (chip){ closeSheet(); popupConfirmDelete = false; openPlantPopup(chip.dataset.calPlant); }
+      if (chip){ closeSheet(); popupConfirmDelete = false; openPlantPopup(chip.dataset.calPlant); return; }
+      var waterBtn = e.target.closest('[data-cal-water]');
+      if (waterBtn){
+        var loc = getLocation(waterBtn.dataset.calWater), list = plantsInArea(loc.id);
+        markPlants(list, 'water', null, 'הושקה: ' + loc.name + ' (' + list.length + ' עציצים)');
+        openCalendarDay(ds);
+        return;
+      }
+      var areaBtn = e.target.closest('[data-cal-area]');
+      if (areaBtn){
+        closeSheet();
+        setOpenArea(areaBtn.dataset.calArea);
+        showTab('today');
+        renderAll();
+        window.scrollTo(0,0);
+      }
     });
   }
   function renderAll(){
