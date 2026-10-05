@@ -157,7 +157,28 @@
   }
   function fertInterval(plant, atDate){
     var t = FERT[plant.type] || FERT.houseplant;
-    return t[season(atDate)] || t.transition;
+    var n = t[season(atDate)] || t.transition;
+    // pots in low light grow slowly and need feeding less often
+    if (plant.type !== 'tree' && isLowLight(getLocation(plant.locationId))) n = lowLightInterval(n);
+    return n;
+  }
+  function lowLightInterval(n){ return Math.round(n * 1.5 / 7) * 7; } // whole weeks
+  function isLowLight(loc){ return loc && (loc.lightLevel === 'indoor' || loc.lightLevel === 'covered'); }
+  // Liquid pot fertilizer from a watering can, advised per area by what grows there.
+  function areaFertAdviceHtml(loc){
+    var list = plantsInArea(loc.id);
+    var leafy = list.filter(function(p){ return p.type !== 'succulent'; }).length;
+    var succ = list.filter(function(p){ return p.type === 'succulent'; }).length;
+    if (!list.length) return '';
+    var low = isLowLight(loc);
+    var every = function(n){ return low ? lowLightInterval(n) : n; };
+    var lines = [];
+    if (leafy) lines.push('<p><b>🌿 עלים ופורחים (' + leafy + '):</b> חצי מהמינון שעל אריזת הדשן לעציצים. ביוני–ספטמבר כל ' + every(14) + ' ימים, במרץ–מאי ובאוקטובר–נובמבר כל ' + every(21) + ' ימים.</p>');
+    if (succ) lines.push('<p><b>🌵 סוקולנטים וקקטוסים (' + succ + '):</b> רבע מהמינון שעל האריזה. ביוני–ספטמבר כל ' + every(30) + ' ימים, בעונות המעבר כל ' + every(45) + ' ימים.</p>');
+    lines.push('<p>בדצמבר–פברואר לא מדשנים.' + (low ? ' באזור עם אור חלש הצמחים גדלים לאט, ולכן הרווחים כאן ארוכים פי 1.5.' : (loc.lightLevel === 'full' ? ' בשמש מלאה משקים הרבה והדשן נשטף, ולכן לא לדלג על מנות בקיץ.' : '')) + '</p>');
+    if (leafy && succ) lines.push('<p>באזור מעורב, "דשנו ממתינים" מסמן רק את העציצים שהגיע תורם, כך שהסוקולנטים לא יקבלו דשן כל שבועיים.</p>');
+    return '<details class="pp-prune pp-fertadv area-fert"><summary>🌱 המלצת דישון לאזור</summary>' + lines.join('') +
+      '<p class="pp-prune-always">לדשן תמיד על אדמה לחה, אף פעם לא עציץ יבש. פעם בחודש להשקות במים בלבד עד שיוצאים מהניקוז, כדי לשטוף מלחים שמצטברים מהמים הקשים ומהדשן.</p></details>';
   }
   function fertOffNow(plant){
     var t = FERT[plant.type] || FERT.houseplant;
@@ -846,6 +867,7 @@
           (isTrees ? '<button type="button" class="bulk-btn iron" ' + (ni?'':'disabled') + ' data-bulk="iron" data-loc="' + loc.id + '">🔩 ברזל לממתינים (' + ni + ')</button>' : '') +
         '</div>' +
       '</div>' +
+      (isTrees ? '' : areaFertAdviceHtml(loc)) +
       (unknown ? '<div class="banner"><span>ל-' + unknown + ' מהצמחים כאן עוד לא סומנה השקיה. אחרי ההשקיה הבאה לחצו על <b>השקיתי את כל האזור</b>, ומשם הלוח יחשב לבד מתי להשקות שוב.</span></div>' : '') +
       (list.length ? '<div class="pot-list">' + list.map(potRowHtml).join('') + '</div>'
         : '<div class="empty-note">אין עדיין צמחים באזור הזה. לחצו + כדי להוסיף.</div>');
@@ -1154,7 +1176,9 @@
 
     function badges(set, cls){
       return CAL_KINDS.map(function(c){
-        var n = c.k === 'water' ? areasOf(set.water).length : set[c.k].length;
+        var n = c.k === 'water' ? areasOf(set.water).length
+          : c.k === 'fert' ? areasOf(potIds(set.fert)).length + treeIds(set.fert).length
+          : set[c.k].length;
         return n ? '<span class="cal-badge ' + c.k + (cls ? ' ' + cls : '') + '">' + c.ic + n + '</span>' : '';
       }).join('');
     }
@@ -1165,7 +1189,7 @@
         '<div class="cal-range">' + MONTH_NAMES[month] + ' ' + year + '</div>' +
         '<button type="button" data-cnav="next" aria-label="חודש הבא">›</button>' +
       '</div>' +
-      '<div class="cal-legend">💧 אזורי עציצים להשקות · 🌱 דישון · 🔩 ברזל · ✂️ גיזום. מהיום והלאה: התראות על מה שצריך לעשות. ימים שעברו: מה שבוצע, ו-⚠ לצמחים שהתאחרה להם השקיה. לחיצה על יום מציגה את הצמחים.</div>';
+      '<div class="cal-legend">💧 אזורי עציצים להשקות · 🌱 דישון (אזורי עציצים ועצים) · 🔩 ברזל · ✂️ גיזום. מהיום והלאה: התראות על מה שצריך לעשות. ימים שעברו: מה שבוצע, ו-⚠ לצמחים שהתאחרה להם השקיה. לחיצה על יום מציגה את הצמחים.</div>';
     var grid = '<div class="cal-grid">' + DAY_LETTERS.map(function(l){ return '<div class="cal-dow">'+l+'</div>'; }).join('');
     for (var i=0;i<firstDow;i++) grid += '<div class="cal-cell empty"></div>';
     for (var day=1; day<=numDays; day++){
@@ -1196,11 +1220,16 @@
     });
     return groups;
   }
-  function areaCards(ids, mode){
+  function potIds(ids){ return ids.filter(function(id){ var p = findPlant(id); return p && p.type !== 'tree'; }); }
+  function treeIds(ids){ return ids.filter(function(id){ var p = findPlant(id); return p && p.type === 'tree'; }); }
+  function areaCards(ids, mode, kind){
+    kind = kind || 'water';
     return '<div class="cal-areas">' + areasOf(ids).map(function(g){
       var total = plantsInArea(g.loc.id).length;
       var names = g.ids.map(function(id){ return escapeHtml(findPlant(id).name); }).join(' · ');
-      var action = mode === 'today' ? '<button type="button" class="cal-area-btn water" data-cal-water="' + g.loc.id + '">💧 השקיתי</button>'
+      var action = mode === 'today' ? (kind === 'fert'
+          ? '<button type="button" class="cal-area-btn fert" data-cal-fert="' + g.loc.id + '">🌱 דישנתי</button>'
+          : '<button type="button" class="cal-area-btn water" data-cal-water="' + g.loc.id + '">💧 השקיתי</button>')
         : mode === 'plan' ? '<button type="button" class="cal-area-btn" data-cal-area="' + g.loc.id + '">פתיחה</button>' : '';
       return '<div class="cal-area">' +
         '<div class="cal-area-main"><div class="cal-area-name">' + (LIGHT_ICON[g.loc.lightLevel] || '📍') + ' ' + escapeHtml(g.loc.name) + '</div>' +
@@ -1228,6 +1257,12 @@
             body += '<div class="cal-group plan water">💧 להשקות (' + areasOf(dd.plan.water).length + ' אזורים)</div>' + areaCards(dd.plan.water, ds === ts ? 'today' : 'plan');
             return;
           }
+          if (c.k === 'fert'){
+            var fp = potIds(dd.plan.fert), ft = treeIds(dd.plan.fert);
+            if (fp.length) body += '<div class="cal-group plan fert">🌱 לדשן עציצים (' + areasOf(fp).length + ' אזורים)</div>' + areaCards(fp, ds === ts ? 'today' : 'plan', 'fert');
+            if (ft.length) body += '<div class="cal-group plan fert">🌱 לדשן עצים (' + ft.length + ')</div>' + plantChips(ft);
+            return;
+          }
           body += '<div class="cal-group plan ' + c.k + '">' + c.ic + ' ' + c.plan + ' (' + dd.plan[c.k].length + ')</div>' + plantChips(dd.plan[c.k]);
         });
       }
@@ -1236,6 +1271,12 @@
           if (!dd.done[c.k].length) return;
           if (c.k === 'water'){
             body += '<div class="cal-group done">✓ 💧 הושקו (' + areasOf(dd.done.water).length + ' אזורים)</div>' + areaCards(dd.done.water, 'done');
+            return;
+          }
+          if (c.k === 'fert'){
+            var dp = potIds(dd.done.fert), dt = treeIds(dd.done.fert);
+            if (dp.length) body += '<div class="cal-group done">✓ 🌱 דושנו עציצים (' + areasOf(dp).length + ' אזורים)</div>' + areaCards(dp, 'done', 'fert');
+            if (dt.length) body += '<div class="cal-group done">✓ 🌱 דושנו עצים (' + dt.length + ')</div>' + plantChips(dt);
             return;
           }
           body += '<div class="cal-group done">✓ ' + c.ic + ' ' + c.done + ' (' + dd.done[c.k].length + ')</div>' + plantChips(dd.done[c.k]);
@@ -1249,7 +1290,7 @@
     wrap.className = 'sheet-backdrop';
     wrap.id = 'sheetBackdrop';
     wrap.innerHTML = '<div class="sheet"><h2>' + label + '</h2>' +
-      (ds === ts && dd && CAL_KINDS.some(function(c){ return dd.plan[c.k].length; }) ? '<p class="am-hint">כולל משימות שהתאחרו. "השקיתי" מסמן את כל האזור; לחיצה על עץ או עציץ פותחת אותו לסימון.</p>' : '') +
+      (ds === ts && dd && CAL_KINDS.some(function(c){ return dd.plan[c.k].length; }) ? '<p class="am-hint">כולל משימות שהתאחרו. "השקיתי" מסמן את כל האזור, "דישנתי" מסמן את העציצים באזור שהגיע תורם, ולחיצה על עץ פותחת אותו לסימון.</p>' : '') +
       body +
       '<div class="sheet-actions" style="margin-top:14px;"><button type="button" class="btn btn-ghost" data-cal-close="1">סגירה</button></div></div>';
     document.getElementById('app').appendChild(wrap);
@@ -1261,6 +1302,14 @@
       if (waterBtn){
         var loc = getLocation(waterBtn.dataset.calWater), list = plantsInArea(loc.id);
         markPlants(list, 'water', null, 'הושקה: ' + loc.name + ' (' + list.length + ' עציצים)');
+        openCalendarDay(ds);
+        return;
+      }
+      var fertBtn = e.target.closest('[data-cal-fert]');
+      if (fertBtn){
+        var floc = getLocation(fertBtn.dataset.calFert);
+        var flist = plantsInArea(floc.id).filter(function(p){ return dd.plan.fert.indexOf(p.id) !== -1; });
+        markPlants(flist, 'fert', null, 'דושנו: ' + floc.name + ' (' + flist.length + ' עציצים)');
         openCalendarDay(ds);
         return;
       }
