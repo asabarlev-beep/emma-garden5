@@ -24,6 +24,9 @@
     succulent:  { summer:30, transition:45, winter:null },
     tree:       { summer:30, transition:45, winter:null }
   };
+  // Iron chelate (Fe-EDDHA) for fruit trees on calcareous soil: about once per
+  // growth flush, never in winter when cold roots can't take it up.
+  var IRON_EVERY = 90;
   var TYPE_LABEL = { houseplant:'עלים / פורח', succulent:'סוקולנט / קקטוס', tree:'עץ פרי' };
   var TYPE_ICON  = { houseplant:'🌿', succulent:'🌵', tree:'🌳' };
   var LIGHT_LABEL = { indoor:'בבית (אור עקיף)', full:'שמש מלאה', partial:'חצי צל', covered:'מקורה / צל' };
@@ -85,10 +88,20 @@
     var last = parse(p.lastFertilized);
     return { daysUntil: diffDays(addDays(last, fertInterval(p, last)), today()) };
   }
-  function isDue(info){ return !info.unknown && !info.off && info.daysUntil <= 0; }
+  function ironOffAt(d){ return season(d) === 'winter'; }
+  function ironDue(p){
+    if (p.type !== 'tree') return { na:true };
+    if (ironOffAt(today())) return { off:true };
+    if (!p.lastIron) return { unknown:true };
+    return { daysUntil: diffDays(addDays(parse(p.lastIron), IRON_EVERY), today()) };
+  }
+  function ironInterval(){ return IRON_EVERY; }
+  function isDue(info){ return !info.na && !info.unknown && !info.off && info.daysUntil <= 0; }
+  var CARE_FIELD = { water:'lastWatered', fert:'lastFertilized', iron:'lastIron' };
+  function careDue(p, kind){ return kind==='water' ? waterDue(p) : kind==='iron' ? ironDue(p) : fertDue(p); }
 
   /* ---------- state ---------- */
-  var APP_VERSION = '3';
+  var APP_VERSION = '4';
   var STATE_KEY = 'gardenHome_state_v1';
   var state = null;
   try { state = JSON.parse(localStorage.getItem(STATE_KEY) || 'null'); } catch(e){ state = null; }
@@ -554,7 +567,7 @@
 
   /* ---------- rendering: area windows ---------- */
   function areaDueCount(areaId){
-    return plantsInArea(areaId).filter(function(p){ return isDue(waterDue(p)) || isDue(fertDue(p)); }).length;
+    return plantsInArea(areaId).filter(function(p){ return isDue(waterDue(p)) || isDue(fertDue(p)) || isDue(ironDue(p)); }).length;
   }
   function areaChipHtml(loc){
     var count = plantsInArea(loc.id).length;
@@ -610,6 +623,12 @@
     if (f.daysUntil <= 0) return 'לדשן עכשיו';
     return 'דישון בעוד ' + f.daysUntil + ' ימים';
   }
+  function ironText(r){
+    if (r.off) return 'לא נותנים ברזל בחורף';
+    if (r.unknown) return 'טרם סומן ברזל';
+    if (r.daysUntil <= 0) return 'לתת ברזל עכשיו';
+    return 'ברזל בעוד ' + r.daysUntil + ' ימים';
+  }
   function thumbHtml(p, cls){
     return '<span class="' + cls + '">' + (p.photoId ? '<img src="' + photoSrc(p.photoId) + '" alt="">' : TYPE_ICON[p.type]) + '</span>';
   }
@@ -617,8 +636,8 @@
   // Bulk actions touch only plants that are due or not yet recorded.
   function bulkTargets(areaId, kind){
     return plantsInArea(areaId).filter(function(p){
-      var info = kind==='water' ? waterDue(p) : fertDue(p);
-      return !info.off && (info.unknown || info.daysUntil <= 0);
+      var info = careDue(p, kind);
+      return !info.na && !info.off && (info.unknown || info.daysUntil <= 0);
     });
   }
 
@@ -653,9 +672,9 @@
       '<p class="app-version">גרסה ' + APP_VERSION + '</p>';
   }
   function potRowHtml(p){
-    var w = waterDue(p), f = fertDue(p);
-    var dot = isDue(w) ? 'due' : isDue(f) ? 'fert' : (w.unknown ? '' : 'ok');
-    var sub = waterText(w) + (p.waterAmount ? ' · ' + escapeHtml(p.waterAmount) : '') + (isDue(f) ? ' · לדשן' : '');
+    var w = waterDue(p), f = fertDue(p), r = ironDue(p);
+    var dot = isDue(w) ? 'due' : isDue(f) ? 'fert' : isDue(r) ? 'iron' : (w.unknown ? '' : 'ok');
+    var sub = waterText(w) + (p.waterAmount ? ' · ' + escapeHtml(p.waterAmount) : '') + (isDue(f) ? ' · לדשן' : '') + (isDue(r) ? ' · ברזל' : '');
     var health = (p.healthCode && p.healthCode !== 'ok') ? ' <span class="pot-health" style="color:' + HEALTH_DOT_VAR[p.healthCode] + '">🩺</span>' : '';
     return '<button type="button" class="pot-row" data-plant="' + p.id + '">' +
       thumbHtml(p, 'pot-thumb') +
@@ -668,9 +687,9 @@
   function renderSection(loc){
     var list = plantsInArea(loc.id);
     var isTrees = loc.kind === 'trees';
-    var nw = bulkTargets(loc.id, 'water').length, nf = bulkTargets(loc.id, 'fert').length;
+    var nw = bulkTargets(loc.id, 'water').length, nf = bulkTargets(loc.id, 'fert').length, ni = isTrees ? bulkTargets(loc.id, 'iron').length : 0;
     var unknown = list.filter(function(p){ return !p.lastWatered; }).length;
-    var tag = isTrees ? 'השקיה ודישון לפי עונה' : (LIGHT_ICON[loc.lightLevel]||'') + ' ' + (LIGHT_LABEL[loc.lightLevel]||'');
+    var tag = isTrees ? 'השקיה, דישון וברזל לפי עונה' : (LIGHT_ICON[loc.lightLevel]||'') + ' ' + (LIGHT_LABEL[loc.lightLevel]||'');
     return '<button type="button" class="sec-back" id="backToSections">→ כל האזורים</button>' +
       '<div class="loc-group-head">' +
         '<div class="loc-group-title">' + (isTrees?'🌳 ':'') + escapeHtml(loc.name) + '<span class="loc-light-tag">' + tag + '</span>' +
@@ -678,6 +697,7 @@
         '<div class="loc-bulk-actions">' +
           '<button type="button" class="bulk-btn" ' + (list.length?'':'disabled') + ' data-bulk="water" data-loc="' + loc.id + '">💧 השקיתי את כל האזור (' + list.length + ')</button>' +
           '<button type="button" class="bulk-btn fert" ' + (nf?'':'disabled') + ' data-bulk="fert" data-loc="' + loc.id + '">🌱 דשנו ממתינים (' + nf + ')</button>' +
+          (isTrees ? '<button type="button" class="bulk-btn iron" ' + (ni?'':'disabled') + ' data-bulk="iron" data-loc="' + loc.id + '">🔩 ברזל לממתינים (' + ni + ')</button>' : '') +
         '</div>' +
       '</div>' +
       (unknown ? '<div class="banner"><span>ל-' + unknown + ' מהצמחים כאן עוד לא סומנה השקיה. אחרי ההשקיה הבאה לחצו על <b>השקיתי את כל האזור</b>, ומשם הלוח יחשב לבד מתי להשקות שוב.</span></div>' : '') +
@@ -691,7 +711,7 @@
 
   /* ---------- plant popup ---------- */
   function popupHtml(p){
-    var w = waterDue(p), f = fertDue(p);
+    var w = waterDue(p), f = fertDue(p), r = ironDue(p), isTree = p.type === 'tree';
     var loc = getLocation(p.locationId);
     var health = '';
     if (p.healthCode){
@@ -714,6 +734,7 @@
       '<div class="pp-stats">' +
         '<div class="pp-stat' + (isDue(w)?' due':'') + '"><div class="k">💧 השקיה הבאה</div><div class="v">' + waterText(w) + '</div><div class="d">' + nextWaterDateText(p) + 'אחרונה: ' + relDay(p.lastWatered) + '</div></div>' +
         '<div class="pp-stat' + (isDue(f)?' due fert':'') + '"><div class="k">🌱 דישון</div><div class="v">' + fertText(f) + '</div><div class="d">אחרון: ' + relDay(p.lastFertilized) + '</div></div>' +
+        (isTree ? '<div class="pp-stat wide iron-stat' + (isDue(r)?' due iron':'') + '"><div class="k">🔩 ברזל (כלאט)</div><div class="v">' + ironText(r) + '</div><div class="d">אחרון: ' + relDay(p.lastIron) + ' · כל ' + IRON_EVERY + ' יום, לא בחורף</div></div>' : '') +
       '</div>' +
       '<button type="button" class="btn btn-ghost pp-identify" data-pp="identify">🔍 זהה את הצמח מתמונה</button>' +
       '<div class="pp-fields">' +
@@ -726,6 +747,7 @@
       '<div class="pp-actions">' +
         '<button type="button" class="btn btn-primary pp-big" data-pp="water">💧 השקיתי עכשיו</button>' +
         '<button type="button" class="btn btn-fert pp-big" data-pp="fert">🌱 דישנתי עכשיו</button>' +
+        (isTree ? '<button type="button" class="btn btn-iron pp-big wide" data-pp="iron">🔩 נתתי ברזל עכשיו</button>' : '') +
       '</div>' +
       '<div class="pp-more">' +
         '<button type="button" class="btn btn-ghost" data-pp="edit">✏️ עריכה</button>' +
@@ -796,7 +818,7 @@
     if (!btn) return;
     var id = openPlantId, act = btn.dataset.pp;
     if (act === 'close'){ closePlantPopup(); return; }
-    if (act === 'water' || act === 'fert'){ markDone(id, act); return; }
+    if (act === 'water' || act === 'fert' || act === 'iron'){ markDone(id, act); return; }
     if (act === 'photo'){ pickPhotoFor(id, 'health'); return; }
     if (act === 'identify'){ pickPhotoFor(id, 'identify'); return; }
     if (act === 'edit'){ closePlantPopup(); openPlantSheet(findPlant(id)); return; }
@@ -827,7 +849,7 @@
       return '<th class="' + (fmt(d)===fmt(t)?'today-col':'') + '">' + DAY_LETTERS[d.getDay()] + '<br>' + d.getDate() + '</th>';
     }).join('') + '</tr>';
 
-    function scheduledDates(lastStr, intervalFn, plant, isFert){
+    function scheduledDates(lastStr, intervalFn, plant, isFert, isIron){
       if (!lastStr) return [];
       var last = parse(lastStr);
       var interval = intervalFn(plant, last);
@@ -837,7 +859,7 @@
       var d = addDays(last, k*interval);
       var guard = 0;
       while (d <= days[6] && guard < 100){
-        var off = isFert && (FERT[plant.type] || FERT.houseplant)[season(d)] === null;
+        var off = (isFert && (FERT[plant.type] || FERT.houseplant)[season(d)] === null) || (isIron && ironOffAt(d));
         if (d >= wStart && !off) hits.push(fmt(d));
         d = addDays(d, interval);
         guard++;
@@ -848,6 +870,7 @@
     var rows = plants.map(function(p){
       var waterDates = scheduledDates(p.lastWatered, waterInterval, p, false);
       var fertDates = scheduledDates(p.lastFertilized, fertInterval, p, true);
+      var ironDates = p.type === 'tree' ? scheduledDates(p.lastIron, ironInterval, p, false, true) : [];
       var cells = days.map(function(d){
         var ds = fmt(d);
         var isPastOrToday = d <= t;
@@ -857,6 +880,9 @@
         }
         if (fertDates.indexOf(ds) !== -1){
           icons += isPastOrToday ? '<button data-act="fert" data-id="'+p.id+'" data-date="'+ds+'" title="סימון דישון">🌱</button>' : '<span class="planned">🌱</span>';
+        }
+        if (ironDates.indexOf(ds) !== -1){
+          icons += isPastOrToday ? '<button data-act="iron" data-id="'+p.id+'" data-date="'+ds+'" title="סימון ברזל">🔩</button>' : '<span class="planned">🔩</span>';
         }
         return '<td class="' + (ds===fmt(t)?'today-col':'') + '"><div class="cell-icons">' + icons + '</div></td>';
       }).join('');
@@ -889,10 +915,10 @@
     var t = today();
 
     var dayData = {};
-    function ensure(ds){ return dayData[ds] || (dayData[ds] = { water:0, fert:0, alerts:[] }); }
+    function ensure(ds){ return dayData[ds] || (dayData[ds] = { water:0, fert:0, iron:0, alerts:[] }); }
     log.forEach(function(ev){
       var d = ensure(ev.date);
-      if (ev.kind==='water') d.water++; else d.fert++;
+      if (ev.kind==='water') d.water++; else if (ev.kind==='iron') d.iron++; else d.fert++;
     });
     plants.forEach(function(p){
       var waterDates = log.filter(function(ev){ return ev.plantId===p.id && ev.kind==='water'; })
@@ -914,7 +940,7 @@
         '<div class="cal-range">' + MONTH_NAMES[month] + ' ' + year + '</div>' +
         '<button type="button" data-cnav="next" aria-label="חודש הבא">›</button>' +
       '</div>' +
-      '<div class="cal-legend">כל האזורים והעצים יחד. 💧 = השקיות שבוצעו · ⚠ = צמחים שהתחילו לאחר בהשקיה. לחיצה על יום מציגה פרטים.</div>';
+      '<div class="cal-legend">כל האזורים והעצים יחד. 💧 = השקיות שבוצעו · 🔩 = ברזל לעצים · ⚠ = צמחים שהתחילו לאחר בהשקיה. לחיצה על יום מציגה פרטים.</div>';
     var grid = '<div class="cal-grid">' + DAY_LETTERS.map(function(l){ return '<div class="cal-dow">'+l+'</div>'; }).join('');
     for (var i=0;i<firstDow;i++) grid += '<div class="cal-cell empty"></div>';
     for (var day=1; day<=numDays; day++){
@@ -924,6 +950,7 @@
       grid += '<button type="button" class="' + cls + '" data-date="' + ds + '">' +
         '<div class="cal-daynum">' + day + '</div>' +
         (dd && dd.water ? '<div class="cal-badge water">💧'+dd.water+'</div>' : '') +
+        (dd && dd.iron ? '<div class="cal-badge iron">🔩'+dd.iron+'</div>' : '') +
         (dd && dd.alerts.length ? '<div class="cal-badge alert">⚠'+dd.alerts.length+'</div>' : '') +
         '</button>';
     }
@@ -955,7 +982,7 @@
   /* ---------- mutations ---------- */
   function markPlants(list, kind, dateStr, msg){
     if (!list.length) return;
-    var field = kind==='water' ? 'lastWatered' : 'lastFertilized';
+    var field = CARE_FIELD[kind] || 'lastFertilized';
     var d = dateStr || fmt(today());
     var changes = [];
     list.forEach(function(p){
@@ -978,7 +1005,7 @@
   function markDone(id, kind, dateStr){
     var p = findPlant(id);
     if (!p) return;
-    markPlants([p], kind, dateStr, (kind==='water' ? 'סומן כהושקה: ' : 'סומן כדושן: ') + p.name);
+    markPlants([p], kind, dateStr, (kind==='water' ? 'סומן כהושקה: ' : kind==='iron' ? 'סומן ברזל: ' : 'סומן כדושן: ') + p.name);
   }
   function deletePlant(id){
     state.plants = state.plants.filter(function(x){ return x.id!==id; });
@@ -1605,7 +1632,7 @@
     if (bulkBtn && !bulkBtn.disabled){
       var kind = bulkBtn.dataset.bulk;
       var list = kind === 'water' ? plantsInArea(bulkBtn.dataset.loc) : bulkTargets(bulkBtn.dataset.loc, kind);
-      markPlants(list, kind, null, (kind==='water' ? 'סומנו כהושקו: ' : 'סומנו כדושנו: ') + list.length + ' צמחים');
+      markPlants(list, kind, null, (kind==='water' ? 'סומנו כהושקו: ' : kind==='iron' ? 'סומן ברזל ל-' : 'סומנו כדושנו: ') + list.length + (kind==='iron' ? ' עצים' : ' צמחים'));
     }
   });
 
@@ -1697,7 +1724,7 @@
     var nav = e.target.closest('button[data-nav]');
     if (nav){ state.weekOffset += (nav.dataset.nav==='next' ? 1 : -1); renderWeek(); return; }
     var btn = e.target.closest('button[data-act]');
-    if (btn) markDone(btn.dataset.id, btn.dataset.act==='water'?'water':'fert', btn.dataset.date);
+    if (btn) markDone(btn.dataset.id, CARE_FIELD[btn.dataset.act] ? btn.dataset.act : 'fert', btn.dataset.date);
   });
 
   document.getElementById('tab-calendar').addEventListener('click', function(e){
@@ -1709,10 +1736,11 @@
     var dd = lastCalendarDayData[ds];
     var parts = parse(ds);
     var label = parts.getDate() + ' ב' + MONTH_NAMES[parts.getMonth()];
-    if (!dd || (!dd.water && !dd.fert && !dd.alerts.length)){ toast(label + ': אין פעילות רשומה'); return; }
+    if (!dd || (!dd.water && !dd.fert && !dd.iron && !dd.alerts.length)){ toast(label + ': אין פעילות רשומה'); return; }
     var bits = [];
     if (dd.water) bits.push('💧 הושקו ' + dd.water);
     if (dd.fert) bits.push('🌱 דושנו ' + dd.fert);
+    if (dd.iron) bits.push('🔩 ברזל ל-' + dd.iron + ' עצים');
     if (dd.alerts.length) bits.push('⚠ חסר מים: ' + dd.alerts.join(', '));
     toast(label + ': ' + bits.join(' · '), 3600);
   });
@@ -1752,6 +1780,26 @@
       if (count){ saveState(); setTimeout(function(){ toast('יובאו השקיות, תמונות והערות מ"יומן הגינה" (' + count + ' צמחים)', 5000); }, 800); }
     });
   }
+  // The first import skipped iron; bring the old journal's iron dates over once.
+  function importOldIron(){
+    var raw = null;
+    try { if (lsGet('gardenHome_ironImported')) return; raw = localStorage.getItem('gardenJournalApp_v1'); } catch(e){ return; }
+    lsSet('gardenHome_ironImported', '1');
+    if (!raw) return;
+    var old; try { old = JSON.parse(raw); } catch(e){ return; }
+    var count = 0;
+    (old.trees || []).forEach(function(t){
+      var m = /^t(\d+)$/.exec(t.id || ''); if (!m || !Array.isArray(t.ironLog) || !t.ironLog.length) return;
+      var id = 'p-t' + m[1], p = findPlant(id); if (!p) return;
+      var have = {};
+      state.log.forEach(function(ev){ if (ev.plantId===id && ev.kind==='iron') have[ev.date] = true; });
+      t.ironLog.forEach(function(d){ if (!have[d]){ state.log.push({ plantId:id, kind:'iron', date:d }); have[d] = true; } });
+      var last = maxDate(t.ironLog);
+      if (last && (!p.lastIron || last > p.lastIron)) p.lastIron = last;
+      count++;
+    });
+    if (count){ saveState(); setTimeout(function(){ toast('יובא יומן הברזל מ"יומן הגינה" (' + count + ' עצים)', 5000); }, 1200); }
+  }
   initCapability();
   var booted = false;
   function boot(){
@@ -1764,7 +1812,7 @@
       else closePlantPopup();
     }
   }
-  loadAllPhotos().then(importOldJournal).then(function(){ if (freshInstall) saveState(); boot(); }, boot);
+  loadAllPhotos().then(importOldJournal).then(importOldIron).then(function(){ if (freshInstall) saveState(); boot(); }, boot);
   if ('serviceWorker' in navigator){
     window.addEventListener('load', function(){
       navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(function(reg){ reg.update(); }).catch(function(){});
