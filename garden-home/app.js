@@ -53,6 +53,47 @@
   ];
   var PRUNE_DEFAULT = { label:'עץ פרי', keys:[], months:[1,2], tip:'להסיר ענפים יבשים, חולים ומצטלבים. עצים נשירים גוזמים בחורף, ירוקי-עד באביב.' };
   var PRUNE_RECENT_DAYS = 90;
+  // Manual fertilizing of fruit trees by kind: a dose in each listed month.
+  var TREE_FERT_RULES = [
+    { label:'הדרים', keys:['ליים','לימון','תפוז','אשכולית','קלמנטינ','מנדרינ','פומלה','הדר'], months:[2,4,6,8], tip:'ארבע מנות בשנה, מפברואר עד אוגוסט. דשן מורכב עשיר בחנקן עם יסודות קורט (דשן להדרים, או יחס כמו 20-10-20). מספטמבר להפסיק, כדי שהצימוח יבשיל לפני החורף. הצהבה בין העורקים בעלים צעירים היא סימן לברזל, לא לעוד דשן.' },
+    { label:'אבוקדו', keys:['אבוקדו'], months:[2,4,6,8], tip:'ארבע מנות קטנות, מפברואר עד אוגוסט, עם דגש על חנקן ואשלגן. אבוקדו רגיש למלח ולשורשים שרופים: מעט בכל פעם, לפזר רחוק מהגזע ולהשקות מיד. חיפוי עבה של קומפוסט או שבבים מתחת לנוף תורם לו יותר מכל דשן.' },
+    { label:'מנגו', keys:['מנגו'], months:[4,6,9], tip:'באביב אחרי החנטה (אפריל) וביוני מנה מאוזנת. אחרי הקטיף (ספטמבר) מנה עשירה באשלגן ודלה בחנקן. מאוקטובר עד פברואר בלי חנקן, כי הוא מעודד צימוח על חשבון הפריחה.' },
+    { label:'פינק ליידי', keys:['פינק'], months:[3,5], tip:'שתי מנות: עם הלבלוב במרץ ואחרי החנטה במאי. לעץ שפורח ולא חונט לא מוסיפים חנקן: עודף חנקן דוחף צימוח ירוק על חשבון פרי. עדיף דשן מאוזן עם אשלגן, ומעט בורון אם יש לך דשן עם יסודות קורט.' },
+    { label:'תפוח', keys:['תפוח'], months:[3,5], tip:'שתי מנות: עם הלבלוב במרץ ואחרי החנטה במאי, דשן מורכב מאוזן. בלי חנקן מיוני והלאה, כדי שהפרי יקבל צבע והעץ ייכנס לתרדמה כראוי.' },
+    { label:'נשירים גלעיניים', keys:['נקטרינ','אפרסק','משמש','שזיף'], months:[2,4,6], tip:'מנה בסוף פברואר עם הלבלוב, מנה באפריל אחרי החנטה, ומנה אחרי הקטיף בקיץ לבניית הניצנים של השנה הבאה. ביולי–אוגוסט בלי חנקן. עודף חנקן מגדיל צימוח ומחלות ומקטין את איכות הפרי.' },
+    { label:'רימון', keys:['רימון'], months:[3,5], tip:'רימון צנוע בדרישות: שתי מנות, במרץ ובמאי. עודף חנקן מעודד יונקים ופיצוח פרי. בקיץ מספיק להשקות.' },
+    { label:'תאנה', keys:['תאנ'], months:[3,6], tip:'שתי מנות קטנות, במרץ וביוני. עודף חנקן מוריד את המתיקות ומעודד צימוח רך. תאנה טובה עם קומפוסט כחיפוי.' },
+    { label:'גפן', keys:['גפן','ענב','איזבלה'], months:[3,5], tip:'עם הלבלוב במרץ ואחרי החנטה במאי. מעט חנקן; לקראת ההבשלה חשוב יותר אשלגן. עודף חנקן מגדל עלווה צפופה ואשכולות חלשים.' },
+    { label:'אפרסמון', keys:['אפרסמון'], months:[3,6], tip:'שתי מנות קטנות, במרץ וביוני. האפרסמון רגיש לעודף חנקן, שגורם לנשירת פרי צעיר.' },
+    { label:'שסק', keys:['שסק'], months:[6,8], tip:'אחרי הקטיף ביוני, ושוב באוגוסט לקראת הפריחה של הסתיו. דשן מורכב מאוזן.' },
+    { label:'גויאבה תותית', keys:['תותית'], months:[3,6,9], tip:'שלוש מנות קטנות, במרץ, ביוני ובספטמבר. שיח צנוע בדרישות.' },
+    { label:'טרופיים', keys:['גויאב','פסיפלור','שעונית','פפאי','פפיה'], months:[3,5,7,9], tip:'צומחים ומניבים לאורך כל העונה: מנה קטנה כל חודשיים, ממרץ עד ספטמבר, בדשן מורכב מאוזן. בחורף להפסיק.' },
+    { label:'פיג׳ויה', keys:['פגוי','פיג׳וי','פיגוי'], months:[3,6], tip:'שתי מנות קטנות, במרץ וביוני. צנועה בדרישות; עודף דשן פוגע בפריחה.' },
+    { label:'תות', keys:['תות'], months:[3,6], tip:'שתי מנות, במרץ וביוני אחרי הקטיף. התות חזק ולא צריך הרבה.' }
+  ];
+  var TREE_FERT_DEFAULT = { label:'עץ פרי', keys:[], months:[3,6], tip:'שתי מנות של דשן מורכב מאוזן, באביב ובתחילת הקיץ.' };
+  var FERT_RECENT_DAYS = 25;
+  function matchRule(p, rules, fallback){
+    var hay = (p.name || '') + ' ' + (p.species || '');
+    for (var i=0;i<rules.length;i++){
+      if (rules[i].keys.some(function(k){ return hay.indexOf(k) !== -1; })) return rules[i];
+    }
+    return fallback;
+  }
+  function treeFertRule(p){ return matchRule(p, TREE_FERT_RULES, TREE_FERT_DEFAULT); }
+  // A reminder on the 1st of each month listed (and on the first of each season
+  // when onlySeasonStart), plus today when it is due now.
+  function monthReminderDates(months, from, to, dueNow, onlySeasonStart){
+    var out = [], t = today();
+    if (dueNow && from <= t && t <= to) out.push(t);
+    for (var m = new Date(from.getFullYear(), from.getMonth(), 1); m <= to; m = new Date(m.getFullYear(), m.getMonth()+1, 1)){
+      var mm = m.getMonth()+1, prev = (mm + 10) % 12 + 1;
+      if (months.indexOf(mm) === -1 || m <= t || m < from) continue;
+      if (onlySeasonStart && months.indexOf(prev) !== -1) continue;
+      out.push(m);
+    }
+    return out;
+  }
   var TYPE_LABEL = { houseplant:'עלים / פורח', succulent:'סוקולנט / קקטוס', tree:'עץ פרי' };
   var TYPE_ICON  = { houseplant:'🌿', succulent:'🌵', tree:'🌳' };
   var LIGHT_LABEL = { indoor:'בבית (אור עקיף)', full:'שמש מלאה', partial:'חצי צל', covered:'מקורה / צל' };
@@ -110,6 +151,12 @@
     return { daysUntil: diffDays(addDays(last, waterInterval(p, last)), today()) };
   }
   function fertDue(p){
+    if (p.type === 'tree'){
+      var r = treeFertRule(p), m = today().getMonth()+1;
+      if (r.months.indexOf(m) === -1) return { off:true, next: nextPruneMonth(r, m), tree:true };
+      if (p.lastFertilized && diffDays(today(), parse(p.lastFertilized)) < FERT_RECENT_DAYS) return { off:true, recent:true, tree:true };
+      return { daysUntil:0, tree:true };
+    }
     if (fertOffNow(p)) return { off:true };
     if (!p.lastFertilized) return { unknown:true };
     var last = parse(p.lastFertilized);
@@ -124,13 +171,7 @@
   }
   function ironInterval(){ return IRON_EVERY; }
   function isDue(info){ return !info.na && !info.unknown && !info.off && info.daysUntil <= 0; }
-  function pruneRule(p){
-    var hay = (p.name || '') + ' ' + (p.species || '');
-    for (var i=0;i<PRUNE_RULES.length;i++){
-      if (PRUNE_RULES[i].keys.some(function(k){ return hay.indexOf(k) !== -1; })) return PRUNE_RULES[i];
-    }
-    return PRUNE_DEFAULT;
-  }
+  function pruneRule(p){ return matchRule(p, PRUNE_RULES, PRUNE_DEFAULT); }
   function pruneDue(p){
     if (p.type !== 'tree') return { na:true };
     var r = pruneRule(p);
@@ -156,7 +197,7 @@
   function careDue(p, kind){ return kind==='water' ? waterDue(p) : kind==='iron' ? ironDue(p) : fertDue(p); }
 
   /* ---------- state ---------- */
-  var APP_VERSION = '6';
+  var APP_VERSION = '7';
   var STATE_KEY = 'gardenHome_state_v1';
   var state = null;
   try { state = JSON.parse(localStorage.getItem(STATE_KEY) || 'null'); } catch(e){ state = null; }
@@ -682,6 +723,11 @@
     return 'השקיה בעוד ' + w.daysUntil + ' ימים';
   }
   function fertText(f){
+    if (f.tree){
+      if (f.recent) return 'דושן החודש ✓';
+      if (f.off) return 'הדישון הבא ב' + MONTH_NAMES[f.next-1];
+      return 'לדשן החודש';
+    }
     if (f.off) return 'לא מדשנים בחורף';
     if (f.unknown) return 'טרם סומן דישון';
     if (f.daysUntil <= 0) return 'לדשן עכשיו';
@@ -744,7 +790,10 @@
       if (isDue(f)) todo.push('לדשן');
       if (isDue(r)) todo.push('ברזל');
       if (isDue(g)) todo.push('עונת גיזום');
-      sub = todo.length ? todo.join(' · ') : pruneText(g);
+      var nextBits = [];
+      if (f.next) nextBits.push('דישון ב' + MONTH_NAMES[f.next-1]);
+      if (g.next) nextBits.push('גיזום ב' + MONTH_NAMES[g.next-1]);
+      sub = todo.length ? todo.join(' · ') : (nextBits.length ? nextBits.join(' · ') : '✓ אין משימות כרגע');
     } else {
       sub = waterText(w) + (p.waterAmount ? ' · ' + escapeHtml(p.waterAmount) : '') + (isDue(f) ? ' · לדשן' : '');
     }
@@ -786,6 +835,7 @@
   function popupHtml(p){
     var w = waterDue(p), f = fertDue(p), r = ironDue(p), g = pruneDue(p), isTree = p.type === 'tree';
     var rule = isTree ? pruneRule(p) : null;
+    var frule = isTree ? treeFertRule(p) : null;
     var loc = getLocation(p.locationId);
     var health = '';
     if (p.healthCode){
@@ -807,11 +857,14 @@
       '</div>' +
       '<div class="pp-stats">' +
         (isTree ? '' : '<div class="pp-stat' + (isDue(w)?' due':'') + '"><div class="k">💧 השקיה הבאה</div><div class="v">' + waterText(w) + '</div><div class="d">' + nextWaterDateText(p) + 'אחרונה: ' + relDay(p.lastWatered) + '</div></div>') +
-        '<div class="pp-stat' + (isDue(f)?' due fert':'') + '"><div class="k">🌱 דישון</div><div class="v">' + fertText(f) + '</div><div class="d">אחרון: ' + relDay(p.lastFertilized) + '</div></div>' +
+        '<div class="pp-stat' + (isDue(f)?' due fert':'') + '"><div class="k">🌱 דישון</div><div class="v">' + fertText(f) + '</div><div class="d">אחרון: ' + relDay(p.lastFertilized) + (isTree ? ' · ' + frule.months.map(function(m){ return MONTH_NAMES[m-1]; }).join(', ') : '') + '</div></div>' +
         (isTree ? '<div class="pp-stat iron-stat' + (isDue(r)?' due iron':'') + '"><div class="k">🔩 ברזל (כלאט)</div><div class="v">' + ironText(r) + '</div><div class="d">אחרון: ' + relDay(p.lastIron) + ' · כל ' + IRON_EVERY + ' יום</div></div>' +
           '<div class="pp-stat wide' + (isDue(g)?' due prune':'') + '"><div class="k">✂️ גיזום · ' + escapeHtml(rule.label) + '</div><div class="v">' + pruneText(g) + '</div><div class="d">אחרון: ' + relDay(p.lastPruned) + (rule.months.length ? ' · עונה: ' + pruneMonthsText(rule) : '') + '</div></div>' : '') +
       '</div>' +
       '<button type="button" class="btn btn-ghost pp-identify" data-pp="identify">🔍 זהה את הצמח מתמונה</button>' +
+      (isTree ? '<details class="pp-prune pp-fertadv"' + (isDue(f) ? ' open' : '') + '><summary>🌱 המלצת דישון ל' + escapeHtml(frule.label) + '</summary>' +
+          '<p>' + escapeHtml(frule.tip).replace(/\d+(?:[-–]\d+)+/g, function(x){ return '<bdi dir="ltr">' + x + '</bdi>'; }) + '</p>' +
+          '<p class="pp-prune-always">כמות למנה, בדשן מורכב גרגרי: לעץ צעיר (עד 5 שנים) כ-<bdi dir="ltr">50–100</bdi> גרם, לעץ בוגר כ-<bdi dir="ltr">200–300</bdi> גרם. לפזר בטבעת מתחת לקצה הנוף, לא צמוד לגזע, ולהשקות מייד. עדיף מעט ולעתים קרובות מאשר הרבה בבת אחת.</p></details>' : '') +
       (isTree ? '<details class="pp-prune"' + (isDue(g) ? ' open' : '') + '><summary>✂️ המלצת גיזום ל' + escapeHtml(rule.label) + '</summary>' +
           '<p>' + escapeHtml(rule.tip) + '</p>' +
           '<p class="pp-prune-always">תמיד: מזמרה חדה ומחוטאת, חתך נקי מעל עין שפונה החוצה, וענפים יבשים וחולים אפשר להסיר בכל עונה.</p></details>' : '') +
@@ -948,7 +1001,9 @@
 
     var rows = plants.map(function(p){
       var waterDates = p.type === 'tree' ? [] : scheduledDates(p.lastWatered, waterInterval, p, false);
-      var fertDates = scheduledDates(p.lastFertilized, fertInterval, p, true);
+      var fertDates = p.type === 'tree'
+        ? monthReminderDates(treeFertRule(p).months, wStart, days[6], isDue(fertDue(p)), false).map(fmt)
+        : scheduledDates(p.lastFertilized, fertInterval, p, true);
       var ironDates = p.type === 'tree' ? scheduledDates(p.lastIron, ironInterval, p, false, true) : [];
       var cells = days.map(function(d){
         var ds = fmt(d);
@@ -981,6 +1036,62 @@
 
   /* ---------- rendering: calendar ---------- */
   var lastCalendarDayData = {};
+  var CAL_KINDS = [
+    { k:'water', ic:'💧', plan:'להשקות', done:'הושקו' },
+    { k:'fert',  ic:'🌱', plan:'לדשן', done:'דושנו' },
+    { k:'iron',  ic:'🔩', plan:'לתת ברזל', done:'קיבלו ברזל' },
+    { k:'prune', ic:'✂️', plan:'לגזום', done:'נגזמו' }
+  ];
+  // Due dates from the last time a care was given, repeated until the end of the range.
+  // Anything already overdue lands on today. off(d) skips dates out of season.
+  function projectDates(lastStr, intervalAt, off, from, to){
+    var out = [];
+    if (!lastStr) return out;
+    var t = today();
+    var cur = addDays(parse(lastStr), intervalAt(parse(lastStr)));
+    if (cur < t){
+      if (!off(t)) out.push(t);
+      cur = addDays(t, intervalAt(t));
+    }
+    var guard = 0;
+    while (cur <= to && guard++ < 400){
+      if (cur >= from && !off(cur)) out.push(cur);
+      cur = addDays(cur, intervalAt(cur));
+    }
+    return out.filter(function(d){ return d >= from && d <= to; });
+  }
+  function calendarPlan(from, to){
+    var plan = {};
+    function add(d, kind, id){
+      var ds = fmt(d);
+      var day = plan[ds] || (plan[ds] = { water:[], fert:[], iron:[], prune:[] });
+      if (day[kind].indexOf(id) === -1) day[kind].push(id);
+    }
+    var t = today();
+    if (to < t) return plan;
+    if (from < t) from = t;
+    state.plants.forEach(function(p){
+      if (p.type !== 'tree'){
+        projectDates(p.lastWatered, function(d){ return waterInterval(p, d); }, function(){ return false; }, from, to)
+          .forEach(function(d){ add(d, 'water', p.id); });
+      }
+      if (p.type !== 'tree'){
+        var fertTable = FERT[p.type] || FERT.houseplant;
+        projectDates(p.lastFertilized, function(d){ return fertInterval(p, d); }, function(d){ return fertTable[season(d)] === null; }, from, to)
+          .forEach(function(d){ add(d, 'fert', p.id); });
+        return;
+      }
+      monthReminderDates(treeFertRule(p).months, from, to, isDue(fertDue(p)), false)
+        .forEach(function(d){ add(d, 'fert', p.id); });
+      projectDates(p.lastIron, ironInterval, ironOffAt, from, to)
+        .forEach(function(d){ add(d, 'iron', p.id); });
+      var rule = pruneRule(p);
+      if (!rule.months.length) return;
+      monthReminderDates(rule.months, from, to, isDue(pruneDue(p)), true)
+        .forEach(function(d){ add(d, 'prune', p.id); });
+    });
+    return plan;
+  }
   function renderCalendar(){
     var plants = state.plants;
     var ids = {};
@@ -991,13 +1102,13 @@
     var year = monthDate.getFullYear(), month = monthDate.getMonth();
     var firstDow = new Date(year, month, 1).getDay();
     var numDays = new Date(year, month + 1, 0).getDate();
-    var t = today();
+    var t = today(), ts = fmt(t);
 
     var dayData = {};
-    function ensure(ds){ return dayData[ds] || (dayData[ds] = { water:0, fert:0, iron:0, prune:0, alerts:[] }); }
+    function ensure(ds){ return dayData[ds] || (dayData[ds] = { done:{ water:[], fert:[], iron:[], prune:[] }, plan:{ water:[], fert:[], iron:[], prune:[] }, alerts:[] }); }
     log.forEach(function(ev){
-      var d = ensure(ev.date);
-      if (ev.kind==='water') d.water++; else if (ev.kind==='iron') d.iron++; else if (ev.kind==='prune') d.prune++; else d.fert++;
+      var list = ensure(ev.date).done[ev.kind] || ensure(ev.date).done.fert;
+      if (list.indexOf(ev.plantId) === -1) list.push(ev.plantId);
     });
     plants.forEach(function(p){
       if (p.type === 'tree') return; // automatic irrigation, no dry alerts
@@ -1010,35 +1121,87 @@
         var nextDate = (i+1 < waterDates.length) ? parse(waterDates[i+1]) : null;
         if (nextDate && diffDays(nextDate, startDate) <= interval) continue;
         var expiry = addDays(startDate, interval + 1);
-        if (expiry <= (nextDate || t)) ensure(fmt(expiry)).alerts.push(p.name);
+        if (expiry < (nextDate || t)) ensure(fmt(expiry)).alerts.push(p.id);
       }
     });
+    var plan = calendarPlan(new Date(year, month, 1), new Date(year, month, numDays));
+    Object.keys(plan).forEach(function(ds){ ensure(ds).plan = plan[ds]; });
     lastCalendarDayData = dayData;
+
+    function badges(set, cls){
+      return CAL_KINDS.map(function(c){
+        return set[c.k].length ? '<span class="cal-badge ' + c.k + (cls ? ' ' + cls : '') + '">' + c.ic + set[c.k].length + '</span>' : '';
+      }).join('');
+    }
+    function count(set){ return CAL_KINDS.reduce(function(n, c){ return n + set[c.k].length; }, 0); }
 
     var head = '<div class="cal-nav">' +
         '<button type="button" data-cnav="prev" aria-label="חודש קודם">‹</button>' +
         '<div class="cal-range">' + MONTH_NAMES[month] + ' ' + year + '</div>' +
         '<button type="button" data-cnav="next" aria-label="חודש הבא">›</button>' +
       '</div>' +
-      '<div class="cal-legend">כל האזורים והעצים יחד. 💧 = השקיות שבוצעו · 🔩 = ברזל · ✂️ = גיזום · ⚠ = צמחים שהתחילו לאחר בהשקיה. לחיצה על יום מציגה פרטים.</div>';
+      '<div class="cal-legend">💧 השקיית עציצים · 🌱 דישון · 🔩 ברזל · ✂️ גיזום. מהיום והלאה: התראות על מה שצריך לעשות. ימים שעברו: מה שבוצע, ו-⚠ לצמחים שהתאחרה להם השקיה. לחיצה על יום מציגה את הצמחים.</div>';
     var grid = '<div class="cal-grid">' + DAY_LETTERS.map(function(l){ return '<div class="cal-dow">'+l+'</div>'; }).join('');
     for (var i=0;i<firstDow;i++) grid += '<div class="cal-cell empty"></div>';
     for (var day=1; day<=numDays; day++){
       var ds = fmt(new Date(year, month, day));
       var dd = dayData[ds];
-      var cls = 'cal-cell' + (ds === fmt(t)?' today':'') + (dd && dd.alerts.length ? ' has-alert' : '');
+      var future = ds >= ts;
+      var inner = '';
+      if (dd){
+        inner = future ? badges(dd.plan, 'plan') : badges(dd.done, '');
+        if (!future && dd.alerts.length) inner += '<span class="cal-badge alert">⚠' + dd.alerts.length + '</span>';
+      }
+      var cls = 'cal-cell' + (ds === ts ? ' today' : '') + (future ? ' future' : '') +
+        (!future && dd && dd.alerts.length ? ' has-alert' : '') + (ds === ts && dd && count(dd.plan) ? ' has-due' : '');
       grid += '<button type="button" class="' + cls + '" data-date="' + ds + '">' +
         '<div class="cal-daynum">' + day + '</div>' +
-        (dd && dd.water ? '<div class="cal-badge water">💧'+dd.water+'</div>' : '') +
-        (dd && dd.iron ? '<div class="cal-badge iron">🔩'+dd.iron+'</div>' : '') +
-        (dd && dd.prune ? '<div class="cal-badge prune">✂️'+dd.prune+'</div>' : '') +
-        (dd && dd.alerts.length ? '<div class="cal-badge alert">⚠'+dd.alerts.length+'</div>' : '') +
+        (inner ? '<div class="cal-badges">' + inner + '</div>' : '') +
         '</button>';
     }
     grid += '</div>';
     document.getElementById('tab-calendar').innerHTML = head + grid;
   }
-
+  function plantChips(ids){
+    return '<div class="cal-chips">' + ids.map(function(id){
+      var p = findPlant(id); if (!p) return '';
+      return '<button type="button" class="cal-chip" data-cal-plant="' + p.id + '">' + TYPE_ICON[p.type] + ' ' + escapeHtml(p.name) + '</button>';
+    }).join('') + '</div>';
+  }
+  function openCalendarDay(ds){
+    var dd = lastCalendarDayData[ds];
+    var d = parse(ds), ts = fmt(today());
+    var label = ['יום ראשון','יום שני','יום שלישי','יום רביעי','יום חמישי','יום שישי','יום שבת'][d.getDay()] + ', ' + d.getDate() + ' ב' + MONTH_NAMES[d.getMonth()];
+    var body = '';
+    if (dd){
+      if (ds >= ts){
+        CAL_KINDS.forEach(function(c){
+          if (dd.plan[c.k].length) body += '<div class="cal-group plan ' + c.k + '">' + c.ic + ' ' + c.plan + ' (' + dd.plan[c.k].length + ')</div>' + plantChips(dd.plan[c.k]);
+        });
+      }
+      if (ds <= ts){
+        CAL_KINDS.forEach(function(c){
+          if (dd.done[c.k].length) body += '<div class="cal-group done">✓ ' + c.ic + ' ' + c.done + ' (' + dd.done[c.k].length + ')</div>' + plantChips(dd.done[c.k]);
+        });
+        if (dd.alerts.length) body += '<div class="cal-group alert">⚠ התאחרה השקיה (' + dd.alerts.length + ')</div>' + plantChips(dd.alerts);
+      }
+    }
+    if (!body) body = '<p class="am-hint">' + (ds >= ts ? 'אין משימות ביום הזה.' : 'לא נרשמה פעילות ביום הזה.') + '</p>';
+    closeSheet();
+    var wrap = document.createElement('div');
+    wrap.className = 'sheet-backdrop';
+    wrap.id = 'sheetBackdrop';
+    wrap.innerHTML = '<div class="sheet"><h2>' + label + '</h2>' +
+      (ds === ts && dd && CAL_KINDS.some(function(c){ return dd.plan[c.k].length; }) ? '<p class="am-hint">כולל משימות שהתאחרו. לחיצה על צמח פותחת אותו לסימון.</p>' : '') +
+      body +
+      '<div class="sheet-actions" style="margin-top:14px;"><button type="button" class="btn btn-ghost" data-cal-close="1">סגירה</button></div></div>';
+    document.getElementById('app').appendChild(wrap);
+    wrap.addEventListener('click', function(e){
+      if (e.target === wrap || e.target.closest('[data-cal-close]')){ closeSheet(); return; }
+      var chip = e.target.closest('[data-cal-plant]');
+      if (chip){ closeSheet(); popupConfirmDelete = false; openPlantPopup(chip.dataset.calPlant); }
+    });
+  }
   function renderAll(){
     document.getElementById('subdate').textContent = todayLabel();
     renderAreaBar();
@@ -1845,19 +2008,7 @@
     var nav = e.target.closest('button[data-cnav]');
     if (nav){ state.calendarOffset += (nav.dataset.cnav==='next' ? 1 : -1); renderCalendar(); return; }
     var cell = e.target.closest('button.cal-cell');
-    if (!cell) return;
-    var ds = cell.dataset.date;
-    var dd = lastCalendarDayData[ds];
-    var parts = parse(ds);
-    var label = parts.getDate() + ' ב' + MONTH_NAMES[parts.getMonth()];
-    if (!dd || (!dd.water && !dd.fert && !dd.iron && !dd.prune && !dd.alerts.length)){ toast(label + ': אין פעילות רשומה'); return; }
-    var bits = [];
-    if (dd.water) bits.push('💧 הושקו ' + dd.water);
-    if (dd.fert) bits.push('🌱 דושנו ' + dd.fert);
-    if (dd.iron) bits.push('🔩 ברזל ל-' + dd.iron + ' עצים');
-    if (dd.prune) bits.push('✂️ נגזמו ' + dd.prune + ' עצים');
-    if (dd.alerts.length) bits.push('⚠ חסר מים: ' + dd.alerts.join(', '));
-    toast(label + ': ' + bits.join(' · '), 3600);
+    if (cell) openCalendarDay(cell.dataset.date);
   });
 
   document.getElementById('app').addEventListener('click', function(e){
