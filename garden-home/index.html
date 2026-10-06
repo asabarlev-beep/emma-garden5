@@ -533,6 +533,23 @@
 
   /* ---------- sections grid ---------- */
   .sec-summary{font-size:13px;color:var(--ink-soft);margin:2px 2px 12px;}
+  .today-strip{display:flex;flex-direction:column;align-items:stretch;gap:8px;width:100%;text-align:right;
+    background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:12px 14px;margin:0 0 12px;
+    font-family:inherit;color:var(--ink);cursor:pointer;box-shadow:var(--shadow);}
+  .today-strip.calm{cursor:default;box-shadow:none;flex-direction:row;align-items:center;justify-content:space-between;}
+  .ts-title{font-size:12px;font-weight:700;color:var(--ink-soft);letter-spacing:.02em;}
+  .ts-items{display:flex;flex-wrap:wrap;gap:6px;}
+  .ts-item{font-size:13px;border-radius:999px;padding:6px 10px;background:var(--surface-soft);border:1px solid var(--line);}
+  .ts-item b{font-variant-numeric:tabular-nums;}
+  .ts-item.water{background:var(--green-soft);border-color:transparent;color:var(--green-strong);}
+  .ts-item.fert{background:var(--gold-soft);border-color:transparent;}
+  .ts-item.iron{background:var(--iron-soft);border-color:transparent;}
+  .ts-item.prune{background:var(--prune-soft);border-color:transparent;}
+  .ts-go{font-size:12px;font-weight:600;color:var(--green);}
+  .ts-none{font-size:13px;color:var(--green);font-weight:600;}
+  .due-chip{display:inline-block;margin-inline-end:6px;font-variant-numeric:tabular-nums;}
+  .link-btn{border:none;background:none;padding:0;font:inherit;color:var(--green);text-decoration:underline;cursor:pointer;}
+  .pp-stat.off .v{color:var(--ink-soft);}
   .sec-summary b{color:var(--terracotta);font-variant-numeric:tabular-nums;}
   .sec-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}
   .sec-tile{
@@ -548,7 +565,7 @@
   .sec-count{font-size:12px;color:var(--ink-soft);font-variant-numeric:tabular-nums;}
   .sec-name{font-family:'Frank Ruhl Libre','Times New Roman',serif;font-weight:700;font-size:16.5px;line-height:1.25;color:var(--green-strong);text-wrap:balance;}
   .sec-status{margin-top:auto;font-size:12px;font-weight:600;color:var(--ink-soft);}
-  .sec-status.due{color:var(--terracotta);}
+  .sec-status.due{color:var(--ink);font-size:13px;}
   .sec-status.ok{color:var(--green);}
   .sec-back{
     background:none;border:none;padding:4px 0;margin-bottom:8px;cursor:pointer;
