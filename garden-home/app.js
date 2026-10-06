@@ -292,7 +292,7 @@
   function lsGet(k){ try { return localStorage.getItem(k); } catch(e){ return null; } }
   function lsSet(k,v){ try { localStorage.setItem(k,v); } catch(e){} }
   var activeTab = lsGet('gh-tab') || 'today';
-  if (['today','week','calendar','doctor'].indexOf(activeTab) === -1) activeTab = 'today';
+  if (['today','calendar','doctor'].indexOf(activeTab) === -1) activeTab = 'today';
   var selectedArea = lsGet('gh-area');
   function validArea(a){ return a && state.locations.some(function(l){ return l.id===a; }); }
   if (!validArea(selectedArea)) selectedArea = (potLocations()[0] || state.locations[0]).id;
@@ -748,7 +748,7 @@
     bar.innerHTML = trees.map(areaChipHtml).join('') +
       (trees.length ? '<span class="area-sep" aria-hidden="true"></span>' : '') +
       potLocations().map(areaChipHtml).join('');
-    bar.hidden = (activeTab !== 'week');
+    bar.hidden = true; // the week view was removed; the area bar stays hidden
     // Scroll only the chip row sideways (never the page) so the active area is visible.
     var active = bar.querySelector('.area-chip.active');
     if (active && !bar.hidden){
@@ -860,14 +860,6 @@
     var trees = state.locations.filter(function(l){ return l.kind==='trees'; });
     return todayStripHtml() +
       '<div class="sec-grid">' + trees.map(sectionTileHtml).join('') + potLocations().map(sectionTileHtml).join('') + '</div>' +
-      '<div class="backup-row" style="margin-top:14px;">' +
-        '<button type="button" class="btn btn-ghost" id="manageLocBtn">📍 ניהול אזורים</button>' +
-        '<button type="button" class="btn btn-ghost" id="settingsBtn">⚙ הגדרות' + (getApiKey() ? '' : ' ·  זיהוי כבוי') + '</button>' +
-      '</div>' +
-      '<div class="backup-row">' +
-        '<button type="button" class="btn btn-ghost" id="exportBtn">📤 ייצוא גיבוי</button>' +
-        '<button type="button" class="btn btn-ghost" id="importBtn">📥 שחזור מגיבוי</button>' +
-      '</div>' +
       '<p class="app-version">גרסה ' + APP_VERSION + '</p>';
   }
   function potRowHtml(p){
@@ -1081,6 +1073,7 @@
 
   /* ---------- rendering: week ---------- */
   function renderWeek(){
+    if (!document.getElementById('tab-week')) return;
     var plants = plantsInArea(selectedArea);
     var wStart = addDays(startOfWeek(today()), state.weekOffset*7);
     var days = [];
@@ -1403,8 +1396,8 @@
     activeTab = tab;
     lsSet('gh-tab', tab);
     document.querySelectorAll('.tab').forEach(function(t){ t.classList.toggle('active', t.dataset.tab===tab); });
-    ['today','week','calendar','doctor'].forEach(function(k){ document.getElementById('tab-'+k).hidden = (k!==tab); });
-    document.getElementById('areaBar').hidden = (tab !== 'week');
+    ['today','calendar','doctor'].forEach(function(k){ document.getElementById('tab-'+k).hidden = (k!==tab); });
+    document.getElementById('areaBar').hidden = true;
   }
 
   /* ---------- mutations ---------- */
@@ -1868,6 +1861,38 @@
     });
   }
 
+  /* ---------- menu: areas, settings, backup ---------- */
+  function openMenuSheet(){
+    closeSheet();
+    var has = !!getApiKey();
+    var wrap = document.createElement('div');
+    wrap.className = 'sheet-backdrop';
+    wrap.id = 'sheetBackdrop';
+    function item(id, ic, title, sub, warn){
+      return '<button type="button" class="menu-item" data-menu="' + id + '"><span class="mi-ic" aria-hidden="true">' + ic + '</span>' +
+        '<span class="mi-main"><span class="mi-title">' + title + '</span><span class="mi-sub' + (warn ? ' warn' : '') + '">' + sub + '</span></span></button>';
+    }
+    wrap.innerHTML = '<div class="sheet"><h2>תפריט</h2><div class="menu-list">' +
+      item('areas', '📍', 'ניהול אזורים', 'שינוי שם, סדר, אור, מחיקה והעברת עציצים') +
+      item('settings', '🔑', 'זיהוי צמחים והרופא', has ? 'פעיל' : 'כבוי: צריך מפתח Claude', !has) +
+      item('export', '📤', 'ייצוא גיבוי', 'שמירת כל הנתונים לקובץ') +
+      item('import', '📥', 'שחזור מגיבוי', 'טעינת קובץ גיבוי') +
+      '</div><p class="app-version">גרסה ' + APP_VERSION + '</p>' +
+      '<div class="sheet-actions"><button type="button" class="btn btn-ghost" data-menu="close">סגירה</button></div></div>';
+    document.getElementById('app').appendChild(wrap);
+    wrap.addEventListener('click', function(e){
+      if (e.target === wrap){ closeSheet(); return; }
+      var b = e.target.closest('[data-menu]'); if (!b) return;
+      var m = b.dataset.menu;
+      if (m === 'close'){ closeSheet(); return; }
+      if (m === 'areas'){ openLocationsSheet(); return; }
+      if (m === 'settings'){ closeSheet(); openSettingsSheet(); return; }
+      if (m === 'export'){ closeSheet(); exportBackup(); return; }
+      if (m === 'import'){ closeSheet(); document.getElementById('importInput').click(); return; }
+    });
+  }
+  document.getElementById('menuBtn').addEventListener('click', openMenuSheet);
+
   /* ---------- backup: export / import ---------- */
   function exportBackup(){
     toast('מכין גיבוי…', 4000);
@@ -2183,7 +2208,7 @@
     }
   });
 
-  document.getElementById('tab-week').addEventListener('click', function(e){
+  if (document.getElementById('tab-week')) document.getElementById('tab-week').addEventListener('click', function(e){
     var nav = e.target.closest('button[data-nav]');
     if (nav){ state.weekOffset += (nav.dataset.nav==='next' ? 1 : -1); renderWeek(); return; }
     var btn = e.target.closest('button[data-act]');
