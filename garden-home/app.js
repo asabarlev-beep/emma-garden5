@@ -115,6 +115,20 @@
     return out;
   }
   var TYPE_LABEL = { houseplant:'עלים / פורח', succulent:'סוקולנט / קקטוס', tree:'עץ פרי' };
+  var TREE_ICONS = [
+    [['פינק','תפוח'], '🍎'], [['ליים','לימון'], '🍋'], [['תפוז','אשכולית','קלמנטינ','מנדרינ','פומלה'], '🍊'],
+    [['מנגו'], '🥭'], [['אבוקדו'], '🥑'], [['נקטרינ','אפרסק','משמש','שזיף'], '🍑'], [['גפן','ענב','איזבלה'], '🍇'],
+    [['תותית'], '🍒'], [['גויאב'], '🍐'], [['פגוי','פיג׳וי','פיגוי'], '🥝'], [['תות'], '🫐'], [['פפאי','פפיה'], '🍈'],
+    [['פסיפלור','שעונית'], '🌺'], [['אפרסמון'], '🍅']
+  ];
+  function plantIcon(p){
+    if (p.type !== 'tree') return TYPE_ICON[p.type] || '🪴';
+    var hay = (p.name || '') + ' ' + (p.species || '');
+    for (var i=0;i<TREE_ICONS.length;i++){
+      if (TREE_ICONS[i][0].some(function(k){ return hay.indexOf(k) !== -1; })) return TREE_ICONS[i][1];
+    }
+    return TYPE_ICON.tree;
+  }
   var TYPE_ICON  = { houseplant:'🌿', succulent:'🌵', tree:'🌳' };
   var LIGHT_LABEL = { indoor:'בבית (אור עקיף)', full:'שמש מלאה', partial:'חצי צל', covered:'מקורה / צל' };
   var LIGHT_ICON  = { indoor:'🏠', full:'☀️', partial:'⛅', covered:'🌥️' };
@@ -208,7 +222,7 @@
   }
   function ironOffAt(d){ return season(d) === 'winter'; }
   function ironDue(p){
-    if (p.type !== 'tree') return { na:true };
+    if (p.type !== 'tree' || !p.needsIron) return { na:true };
     if (ironOffAt(today())) return { off:true };
     if (!p.lastIron) return { unknown:true };
     return { daysUntil: diffDays(addDays(parse(p.lastIron), IRON_EVERY), today()) };
@@ -241,7 +255,7 @@
   function careDue(p, kind){ return kind==='water' ? waterDue(p) : kind==='iron' ? ironDue(p) : fertDue(p); }
 
   /* ---------- state ---------- */
-  var APP_VERSION = '9';
+  var APP_VERSION = '10';
   var STATE_KEY = 'gardenHome_state_v1';
   var state = null;
   try { state = JSON.parse(localStorage.getItem(STATE_KEY) || 'null'); } catch(e){ state = null; }
@@ -262,6 +276,8 @@
   state.plants.forEach(function(p){
     if (!p.locationId) p.locationId = potLocations()[0].id;
     if (p.type === 'tree') p.locationId = TREES_LOC;
+    // iron is tracked only for trees that need it; trees that already got iron keep tracking
+    if (p.type === 'tree' && p.needsIron === undefined) p.needsIron = !!p.lastIron;
   });
 
   function potLocations(){ return state.locations.filter(function(l){ return l.kind !== 'trees'; }); }
@@ -276,7 +292,7 @@
   function lsGet(k){ try { return localStorage.getItem(k); } catch(e){ return null; } }
   function lsSet(k,v){ try { localStorage.setItem(k,v); } catch(e){} }
   var activeTab = lsGet('gh-tab') || 'today';
-  if (['today','week','calendar','doctor'].indexOf(activeTab) === -1) activeTab = 'today';
+  if (['today','calendar','doctor'].indexOf(activeTab) === -1) activeTab = 'today';
   var selectedArea = lsGet('gh-area');
   function validArea(a){ return a && state.locations.some(function(l){ return l.id===a; }); }
   if (!validArea(selectedArea)) selectedArea = (potLocations()[0] || state.locations[0]).id;
@@ -732,7 +748,7 @@
     bar.innerHTML = trees.map(areaChipHtml).join('') +
       (trees.length ? '<span class="area-sep" aria-hidden="true"></span>' : '') +
       potLocations().map(areaChipHtml).join('');
-    bar.hidden = (activeTab !== 'week');
+    bar.hidden = true; // the week view was removed; the area bar stays hidden
     // Scroll only the chip row sideways (never the page) so the active area is visible.
     var active = bar.querySelector('.area-chip.active');
     if (active && !bar.hidden){
@@ -784,7 +800,7 @@
     return 'ברזל בעוד ' + r.daysUntil + ' ימים';
   }
   function thumbHtml(p, cls){
-    return '<span class="' + cls + '">' + (p.photoId ? '<img src="' + photoSrc(p.photoId) + '" alt="">' : TYPE_ICON[p.type]) + '</span>';
+    return '<span class="' + cls + '">' + (p.photoId ? '<img src="' + photoSrc(p.photoId) + '" alt="">' : plantIcon(p)) + '</span>';
   }
 
   // Bulk actions touch only plants that are due or not yet recorded.
@@ -795,12 +811,42 @@
     });
   }
 
+  // How many plants in a list are due, per care kind.
+  function dueByKind(list){
+    var c = { water:0, fert:0, iron:0, prune:0 };
+    list.forEach(function(p){
+      if (isDue(waterDue(p))) c.water++;
+      if (isDue(fertDue(p))) c.fert++;
+      if (isDue(ironDue(p))) c.iron++;
+      if (isDue(pruneDue(p))) c.prune++;
+    });
+    return c;
+  }
+  var KIND_ICON = { water:'💧', fert:'🌱', iron:'🔩', prune:'✂️' };
+  function dueChipsHtml(c){
+    return ['water','fert','iron','prune'].filter(function(k){ return c[k]; }).map(function(k){
+      return '<span class="due-chip ' + k + '">' + KIND_ICON[k] + ' ' + c[k] + '</span>';
+    }).join('');
+  }
+  function todayStripHtml(){
+    var pots = potLocations(), trees = plantsInArea(TREES_LOC);
+    var waterAreas = pots.filter(function(l){ return plantsInArea(l.id).some(function(p){ return isDue(waterDue(p)); }); }).length;
+    var fertAreas = pots.filter(function(l){ return plantsInArea(l.id).some(function(p){ return isDue(fertDue(p)); }); }).length;
+    var tc = dueByKind(trees);
+    var items = [];
+    if (waterAreas) items.push('<span class="ts-item water"><b>💧 ' + waterAreas + '</b> ' + (waterAreas === 1 ? 'אזור' : 'אזורים') + ' להשקות</span>');
+    if (fertAreas || tc.fert) items.push('<span class="ts-item fert"><b>🌱 ' + (fertAreas + tc.fert) + '</b> לדשן' + (fertAreas && tc.fert ? ' (' + fertAreas + (fertAreas === 1 ? ' אזור, ' : ' אזורים, ') + tc.fert + (tc.fert === 1 ? ' עץ)' : ' עצים)') : tc.fert ? ' (עצים)' : ' (אזורים)') + '</span>');
+    if (tc.iron) items.push('<span class="ts-item iron"><b>🔩 ' + tc.iron + '</b> ' + (tc.iron === 1 ? 'עץ' : 'עצים') + ' לברזל</span>');
+    if (tc.prune) items.push('<span class="ts-item prune"><b>✂️ ' + tc.prune + '</b> ' + (tc.prune === 1 ? 'עץ' : 'עצים') + ' לגזום</span>');
+    if (!items.length) return '<div class="today-strip calm"><span class="ts-title">היום</span><span class="ts-none">✓ אין משימות. הגינה מטופלת.</span></div>';
+    return '<button type="button" class="today-strip" id="todayStrip"><span class="ts-title">מה עושים היום</span><span class="ts-items">' + items.join('') + '</span><span class="ts-go">לרשימה המלאה ‹</span></button>';
+  }
   function sectionTileHtml(loc){
     var list = plantsInArea(loc.id);
     var due = areaDueCount(loc.id);
     var isTrees = loc.kind === 'trees';
     var unknown = isTrees ? 0 : list.filter(function(p){ return !p.lastWatered; }).length;
-    var status = due ? '<span class="sec-status due">⏰ ' + due + ' ממתינים לטיפול</span>'
+    var status = due ? '<span class="sec-status due">' + dueChipsHtml(dueByKind(list)) + '</span>'
       : unknown ? '<span class="sec-status">עוד לא סומנה השקיה</span>'
       : list.length ? '<span class="sec-status ok">✓ הכל מטופל</span>' : '<span class="sec-status">ריק</span>';
     return '<button type="button" class="sec-tile' + (isTrees?' trees':'') + (due?' has-due':'') + '" data-open-area="' + loc.id + '">' +
@@ -812,17 +858,8 @@
   }
   function renderSections(){
     var trees = state.locations.filter(function(l){ return l.kind==='trees'; });
-    var totalDue = state.locations.reduce(function(s,l){ return s + areaDueCount(l.id); }, 0);
-    return '<div class="sec-summary">' + (totalDue ? '<b>' + totalDue + '</b> צמחים ממתינים לטיפול היום' : 'אין צמחים שממתינים לטיפול היום') + '</div>' +
+    return todayStripHtml() +
       '<div class="sec-grid">' + trees.map(sectionTileHtml).join('') + potLocations().map(sectionTileHtml).join('') + '</div>' +
-      '<div class="backup-row" style="margin-top:14px;">' +
-        '<button type="button" class="btn btn-ghost" id="manageLocBtn">📍 ניהול אזורים</button>' +
-        '<button type="button" class="btn btn-ghost" id="settingsBtn">⚙ הגדרות' + (getApiKey() ? '' : ' ·  זיהוי כבוי') + '</button>' +
-      '</div>' +
-      '<div class="backup-row">' +
-        '<button type="button" class="btn btn-ghost" id="exportBtn">📤 ייצוא גיבוי</button>' +
-        '<button type="button" class="btn btn-ghost" id="importBtn">📥 שחזור מגיבוי</button>' +
-      '</div>' +
       '<p class="app-version">גרסה ' + APP_VERSION + '</p>';
   }
   function potRowHtml(p){
@@ -851,6 +888,15 @@
       '<span class="pot-chev" aria-hidden="true">‹</span>' +
     '</button>';
   }
+  function urgentFirst(list){
+    function rank(p){
+      var c = dueByKind([p]);
+      return (c.water || c.fert || c.iron || c.prune) ? 0 : 1;
+    }
+    return list.map(function(p, i){ return { p:p, i:i, r:rank(p) }; })
+      .sort(function(a, b){ return a.r - b.r || a.i - b.i; })
+      .map(function(x){ return x.p; });
+  }
   function renderSection(loc){
     var list = plantsInArea(loc.id);
     var isTrees = loc.kind === 'trees';
@@ -869,7 +915,7 @@
       '</div>' +
       (isTrees ? '' : areaFertAdviceHtml(loc)) +
       (unknown ? '<div class="banner"><span>ל-' + unknown + ' מהצמחים כאן עוד לא סומנה השקיה. אחרי ההשקיה הבאה לחצו על <b>השקיתי את כל האזור</b>, ומשם הלוח יחשב לבד מתי להשקות שוב.</span></div>' : '') +
-      (list.length ? '<div class="pot-list">' + list.map(potRowHtml).join('') + '</div>'
+      (list.length ? '<div class="pot-list">' + (isTrees ? urgentFirst(list) : list).map(potRowHtml).join('') + '</div>'
         : '<div class="empty-note">אין עדיין צמחים באזור הזה. לחצו + כדי להוסיף.</div>');
   }
   function renderToday(){
@@ -893,7 +939,7 @@
     }
     return '<div class="sheet pp" role="dialog" aria-modal="true" aria-labelledby="ppTitle">' +
       '<button type="button" class="pp-photo" data-pp="photo" aria-label="צילום הצמח">' +
-        (p.photoId ? '<img src="' + photoSrc(p.photoId) + '" alt="">' : '<span aria-hidden="true">' + TYPE_ICON[p.type] + '</span>') +
+        (p.photoId ? '<img src="' + photoSrc(p.photoId) + '" alt="">' : '<span aria-hidden="true">' + plantIcon(p) + '</span>') +
         '<span class="pp-cam">📷 ' + (p.photoId ? 'צילום חדש' : 'צילום') + '</span>' +
       '</button>' +
       '<div class="pp-head">' +
@@ -904,7 +950,9 @@
       '<div class="pp-stats">' +
         (isTree ? '' : '<div class="pp-stat' + (isDue(w)?' due':'') + '"><div class="k">💧 השקיה הבאה</div><div class="v">' + waterText(w) + '</div><div class="d">' + nextWaterDateText(p) + 'אחרונה: ' + relDay(p.lastWatered) + '</div></div>') +
         '<div class="pp-stat' + (isDue(f)?' due fert':'') + '"><div class="k">🌱 דישון</div><div class="v">' + fertText(f) + '</div><div class="d">אחרון: ' + relDay(p.lastFertilized) + (isTree ? ' · ' + monthRangeText(frule.months) + ', כל ' + frule.every + ' יום' : '') + '</div></div>' +
-        (isTree ? '<div class="pp-stat iron-stat' + (isDue(r)?' due iron':'') + '"><div class="k">🔩 ברזל (כלאט)</div><div class="v">' + ironText(r) + '</div><div class="d">אחרון: ' + relDay(p.lastIron) + ' · כל ' + IRON_EVERY + ' יום</div></div>' +
+        (isTree ? (p.needsIron
+            ? '<div class="pp-stat iron-stat' + (isDue(r)?' due iron':'') + '"><div class="k">🔩 ברזל (כלאט)</div><div class="v">' + ironText(r) + '</div><div class="d">אחרון: ' + relDay(p.lastIron) + ' · כל ' + IRON_EVERY + ' יום · <button type="button" class="link-btn" data-pp="ironOff">הפסקת מעקב</button></div></div>'
+            : '<div class="pp-stat iron-stat off"><div class="k">🔩 ברזל (כלאט)</div><div class="v">לא במעקב</div><div class="d"><button type="button" class="link-btn" data-pp="ironOn">העץ צריך ברזל</button> · הצהבה בין העורקים בעלים צעירים</div></div>') +
           '<div class="pp-stat wide' + (isDue(g)?' due prune':'') + '"><div class="k">✂️ גיזום · ' + escapeHtml(rule.label) + '</div><div class="v">' + pruneText(g) + '</div><div class="d">אחרון: ' + relDay(p.lastPruned) + (rule.months.length ? ' · עונה: ' + pruneMonthsText(rule) : '') + '</div></div>' : '') +
       '</div>' +
       '<button type="button" class="btn btn-ghost pp-identify" data-pp="identify">🔍 זהה את הצמח מתמונה</button>' +
@@ -998,6 +1046,13 @@
     var id = openPlantId, act = btn.dataset.pp;
     if (act === 'close'){ closePlantPopup(); return; }
     if (CARE_FIELD[act]){ markDone(id, act); return; }
+    if (act === 'ironOn' || act === 'ironOff'){
+      var ip = findPlant(id); if (!ip) return;
+      ip.needsIron = act === 'ironOn';
+      saveState(); renderAll();
+      toast(ip.needsIron ? 'תזכורת ברזל הופעלה ל' + ip.name : 'הופסק מעקב ברזל ל' + ip.name);
+      return;
+    }
     if (act === 'photo'){ pickPhotoFor(id, 'health'); return; }
     if (act === 'identify'){ pickPhotoFor(id, 'identify'); return; }
     if (act === 'edit'){ closePlantPopup(); openPlantSheet(findPlant(id)); return; }
@@ -1018,6 +1073,7 @@
 
   /* ---------- rendering: week ---------- */
   function renderWeek(){
+    if (!document.getElementById('tab-week')) return;
     var plants = plantsInArea(selectedArea);
     var wStart = addDays(startOfWeek(today()), state.weekOffset*7);
     var days = [];
@@ -1051,7 +1107,7 @@
       var fertDates = p.type === 'tree'
         ? treeFertDates(p, wStart, days[6]).map(fmt)
         : scheduledDates(p.lastFertilized, fertInterval, p, true);
-      var ironDates = p.type === 'tree' ? scheduledDates(p.lastIron, ironInterval, p, false, true) : [];
+      var ironDates = (p.type === 'tree' && p.needsIron) ? scheduledDates(p.lastIron, ironInterval, p, false, true) : [];
       var cells = days.map(function(d){
         var ds = fmt(d);
         var isPastOrToday = d <= t;
@@ -1067,7 +1123,7 @@
         }
         return '<td class="' + (ds===fmt(t)?'today-col':'') + '"><div class="cell-icons">' + icons + '</div></td>';
       }).join('');
-      return '<tr><td class="plant-col">' + TYPE_ICON[p.type] + ' ' + escapeHtml(p.name) + '</td>' + cells + '</tr>';
+      return '<tr><td class="plant-col">' + plantIcon(p) + ' ' + escapeHtml(p.name) + '</td>' + cells + '</tr>';
     }).join('');
 
     var html =
@@ -1129,7 +1185,7 @@
         return;
       }
       treeFertDates(p, from, to).forEach(function(d){ add(d, 'fert', p.id); });
-      projectDates(p.lastIron, ironInterval, ironOffAt, from, to)
+      if (p.needsIron) projectDates(p.lastIron, ironInterval, ironOffAt, from, to)
         .forEach(function(d){ add(d, 'iron', p.id); });
       var rule = pruneRule(p);
       if (!rule.months.length) return;
@@ -1241,7 +1297,7 @@
   function plantChips(ids){
     return '<div class="cal-chips">' + ids.map(function(id){
       var p = findPlant(id); if (!p) return '';
-      return '<button type="button" class="cal-chip" data-cal-plant="' + p.id + '">' + TYPE_ICON[p.type] + ' ' + escapeHtml(p.name) + '</button>';
+      return '<button type="button" class="cal-chip" data-cal-plant="' + p.id + '">' + plantIcon(p) + ' ' + escapeHtml(p.name) + '</button>';
     }).join('') + '</div>';
   }
   function openCalendarDay(ds){
@@ -1340,8 +1396,8 @@
     activeTab = tab;
     lsSet('gh-tab', tab);
     document.querySelectorAll('.tab').forEach(function(t){ t.classList.toggle('active', t.dataset.tab===tab); });
-    ['today','week','calendar','doctor'].forEach(function(k){ document.getElementById('tab-'+k).hidden = (k!==tab); });
-    document.getElementById('areaBar').hidden = (tab !== 'week');
+    ['today','calendar','doctor'].forEach(function(k){ document.getElementById('tab-'+k).hidden = (k!==tab); });
+    document.getElementById('areaBar').hidden = true;
   }
 
   /* ---------- mutations ---------- */
@@ -1351,6 +1407,7 @@
     var d = dateStr || fmt(today());
     var changes = [];
     list.forEach(function(p){
+      if (kind === 'iron' && !p.needsIron){ changes.push({ id:p.id, field:'needsIron', prev:p.needsIron }); p.needsIron = true; }
       changes.push({ id:p.id, field:field, prev:p[field] });
       if (!p[field] || p[field] < d) p[field] = d;
       logEvent(p.id, kind, d);
@@ -1610,14 +1667,14 @@
     var others = potLocations().filter(function(o){ return o.id !== l.id; });
     var moveOpts = function(){ return '<option value="">נשאר כאן</option>' + others.map(function(o){ return '<option value="' + o.id + '">העברה ל' + escapeHtml(o.name) + '</option>'; }).join(''); };
     var rows = inArea.map(function(p){
-      return '<div class="am-plant"><span class="am-pname">' + TYPE_ICON[p.type] + ' ' + escapeHtml(p.name) + '</span>' +
+      return '<div class="am-plant"><span class="am-pname">' + plantIcon(p) + ' ' + escapeHtml(p.name) + '</span>' +
         (isTrees ? '' : '<select class="am-move" data-plant="' + p.id + '" aria-label="העברת ' + escapeHtml(p.name) + '">' + moveOpts() + '</select>') + '</div>';
     }).join('');
     var addable = isTrees ? '' : others.map(function(o){
       var list = plantsInArea(o.id);
       if (!list.length) return '';
       return '<div class="am-group">' + escapeHtml(o.name) + '</div>' + list.map(function(p){
-        return '<label class="am-check"><input type="checkbox" class="am-add" value="' + p.id + '"> ' + TYPE_ICON[p.type] + ' ' + escapeHtml(p.name) + '</label>';
+        return '<label class="am-check"><input type="checkbox" class="am-add" value="' + p.id + '"> ' + plantIcon(p) + ' ' + escapeHtml(p.name) + '</label>';
       }).join('');
     }).join('');
     return '<div class="sheet">' +
@@ -1803,6 +1860,38 @@
       }
     });
   }
+
+  /* ---------- menu: areas, settings, backup ---------- */
+  function openMenuSheet(){
+    closeSheet();
+    var has = !!getApiKey();
+    var wrap = document.createElement('div');
+    wrap.className = 'sheet-backdrop';
+    wrap.id = 'sheetBackdrop';
+    function item(id, ic, title, sub, warn){
+      return '<button type="button" class="menu-item" data-menu="' + id + '"><span class="mi-ic" aria-hidden="true">' + ic + '</span>' +
+        '<span class="mi-main"><span class="mi-title">' + title + '</span><span class="mi-sub' + (warn ? ' warn' : '') + '">' + sub + '</span></span></button>';
+    }
+    wrap.innerHTML = '<div class="sheet"><h2>תפריט</h2><div class="menu-list">' +
+      item('areas', '📍', 'ניהול אזורים', 'שינוי שם, סדר, אור, מחיקה והעברת עציצים') +
+      item('settings', '🔑', 'זיהוי צמחים והרופא', has ? 'פעיל' : 'כבוי: צריך מפתח Claude', !has) +
+      item('export', '📤', 'ייצוא גיבוי', 'שמירת כל הנתונים לקובץ') +
+      item('import', '📥', 'שחזור מגיבוי', 'טעינת קובץ גיבוי') +
+      '</div><p class="app-version">גרסה ' + APP_VERSION + '</p>' +
+      '<div class="sheet-actions"><button type="button" class="btn btn-ghost" data-menu="close">סגירה</button></div></div>';
+    document.getElementById('app').appendChild(wrap);
+    wrap.addEventListener('click', function(e){
+      if (e.target === wrap){ closeSheet(); return; }
+      var b = e.target.closest('[data-menu]'); if (!b) return;
+      var m = b.dataset.menu;
+      if (m === 'close'){ closeSheet(); return; }
+      if (m === 'areas'){ openLocationsSheet(); return; }
+      if (m === 'settings'){ closeSheet(); openSettingsSheet(); return; }
+      if (m === 'export'){ closeSheet(); exportBackup(); return; }
+      if (m === 'import'){ closeSheet(); document.getElementById('importInput').click(); return; }
+    });
+  }
+  document.getElementById('menuBtn').addEventListener('click', openMenuSheet);
 
   /* ---------- backup: export / import ---------- */
   function exportBackup(){
@@ -2016,6 +2105,7 @@
 
   document.getElementById('tab-today').addEventListener('click', function(e){
     if (e.target.id === 'manageLocBtn'){ openLocationsSheet(); return; }
+    if (e.target.closest('#todayStrip')){ state.calendarOffset = 0; renderCalendar(); openCalendarDay(fmt(today())); return; }
     if (e.target.id === 'settingsBtn'){ openSettingsSheet(); return; }
     if (e.target.id === 'exportBtn'){ exportBackup(); return; }
     if (e.target.id === 'importBtn'){ document.getElementById('importInput').click(); return; }
@@ -2118,7 +2208,7 @@
     }
   });
 
-  document.getElementById('tab-week').addEventListener('click', function(e){
+  if (document.getElementById('tab-week')) document.getElementById('tab-week').addEventListener('click', function(e){
     var nav = e.target.closest('button[data-nav]');
     if (nav){ state.weekOffset += (nav.dataset.nav==='next' ? 1 : -1); renderWeek(); return; }
     var btn = e.target.closest('button[data-act]');
@@ -2183,6 +2273,7 @@
       t.ironLog.forEach(function(d){ if (!have[d]){ state.log.push({ plantId:id, kind:'iron', date:d }); have[d] = true; } });
       var last = maxDate(t.ironLog);
       if (last && (!p.lastIron || last > p.lastIron)) p.lastIron = last;
+      p.needsIron = true;
       count++;
     });
     if (count){ saveState(); setTimeout(function(){ toast('יובא יומן הברזל מ"יומן הגינה" (' + count + ' עצים)', 5000); }, 1200); }
