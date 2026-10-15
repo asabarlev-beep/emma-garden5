@@ -276,6 +276,222 @@
     return notes;
   }
 
+
+  /* ---------- tree journal: bloom, fruit set, harvest, problems and photos over the years ---------- */
+  var J_KINDS = [
+    { k:'bloom',   ic:'🌸', label:'פריחה' },
+    { k:'set',     ic:'🍏', label:'חנטה' },
+    { k:'harvest', ic:'🧺', label:'קציר' },
+    { k:'problem', ic:'🐛', label:'בעיה' },
+    { k:'photo',   ic:'📷', label:'תמונה / הערה' }
+  ];
+  function jKind(k){ for (var i=0;i<J_KINDS.length;i++) if (J_KINDS[i].k === k) return J_KINDS[i]; return J_KINDS[4]; }
+  function journalOf(p){ return Array.isArray(p.journal) ? p.journal : []; }
+  function sortedJournal(p){ return journalOf(p).slice().sort(function(a, b){ return a.date < b.date ? 1 : a.date > b.date ? -1 : (b.id > a.id ? 1 : -1); }); }
+  function shortDate(ds){ var d = parse(ds); return d.getDate() + '/' + (d.getMonth()+1); }
+  // A year's season: first bloom, first set, and the harvest total per unit.
+  function yearSummary(p, year){
+    var ys = String(year), out = { bloom:null, set:null, harvest:{}, count:0 };
+    journalOf(p).forEach(function(e){
+      if (e.date.slice(0, 4) !== ys) return;
+      out.count++;
+      if (e.kind === 'bloom' && (!out.bloom || e.date < out.bloom)) out.bloom = e.date;
+      if (e.kind === 'set' && (!out.set || e.date < out.set)) out.set = e.date;
+      if (e.kind === 'harvest'){
+        var u = e.unit || 'פירות';
+        if (e.qty > 0) out.harvest[u] = (out.harvest[u] || 0) + Number(e.qty);
+        else out.harvest['פעמים'] = (out.harvest['פעמים'] || 0) + 1;
+      }
+    });
+    return out;
+  }
+  function harvestText(h){
+    var keys = Object.keys(h);
+    if (!keys.length) return '';
+    return keys.map(function(u){ return u === 'פעמים' ? h[u] + ' קטיפים' : (Math.round(h[u] * 10) / 10) + ' ' + u; }).join(' + ');
+  }
+  function yearLineHtml(p, year){
+    var y = yearSummary(p, year);
+    if (!y.count) return '';
+    var bits = [];
+    if (y.bloom) bits.push('🌸 ' + shortDate(y.bloom));
+    if (y.set) bits.push('🍏 ' + shortDate(y.set));
+    var h = harvestText(y.harvest);
+    if (h) bits.push('🧺 ' + h);
+    return '<div class="j-year"><b>' + year + '</b>' + (bits.length ? ' · ' + bits.join(' · ') : ' · ' + y.count + ' רשומות') + '</div>';
+  }
+  function journalHtml(p, showAll){
+    var list = sortedJournal(p);
+    var thisYear = today().getFullYear();
+    var years = [];
+    list.forEach(function(e){ var y = Number(e.date.slice(0, 4)); if (years.indexOf(y) === -1) years.push(y); });
+    var summary = years.slice(0, 3).map(function(y){ return yearLineHtml(p, y); }).join('');
+    var shown = showAll ? list : list.slice(0, 4);
+    var rows = shown.map(function(e){
+      var k = jKind(e.kind);
+      return '<button type="button" class="j-entry" data-pp="jedit" data-entry="' + e.id + '">' +
+        '<span class="j-ic" aria-hidden="true">' + k.ic + '</span>' +
+        '<span class="j-main"><span class="j-top"><b>' + k.label + '</b> · ' + shortDate(e.date) + (e.date.slice(0, 4) !== String(thisYear) ? '/' + e.date.slice(2, 4) : '') +
+          (e.kind === 'harvest' && e.qty ? ' · ' + e.qty + ' ' + escapeHtml(e.unit || 'פירות') : '') + '</span>' +
+          (e.note ? '<span class="j-note">' + escapeHtml(e.note) + '</span>' : '') + '</span>' +
+        (e.photoId && photoSrc(e.photoId) ? '<img class="j-thumb" src="' + photoSrc(e.photoId) + '" alt="">' : '') +
+      '</button>';
+    }).join('');
+    return '<div class="journal">' +
+      '<div class="j-head"><span class="j-title">📔 יומן העץ</span>' + (list.length ? '<span class="j-count">' + list.length + ' רשומות</span>' : '') + '</div>' +
+      '<div class="j-add">' + J_KINDS.map(function(k){ return '<button type="button" class="j-add-btn" data-pp="jadd" data-kind="' + k.k + '">' + k.ic + ' ' + k.label + '</button>'; }).join('') + '</div>' +
+      (summary ? '<div class="j-years">' + summary + '</div>' : '') +
+      (rows ? '<div class="j-list">' + rows + '</div>' : '<p class="j-empty">עוד אין רשומות. כשהעץ פורח, חונט או נותן פרי, לחצו על הכפתור המתאים. אחרי עונה תוכלו להשוות בין שנים.</p>') +
+      (list.length > shown.length ? '<button type="button" class="link-btn j-more" data-pp="jall">הצגת כל ' + list.length + ' הרשומות</button>' : '') +
+    '</div>';
+  }
+  var journalShowAll = false;
+  function openJournalSheet(plantId, kind, entryId){
+    var p = findPlant(plantId); if (!p) return;
+    var e = entryId ? journalOf(p).filter(function(x){ return x.id === entryId; })[0] : null;
+    kind = e ? e.kind : kind;
+    var k = jKind(kind), isHarvest = kind === 'harvest';
+    var pendingFile = null, confirmDel = false;
+    closeSheet();
+    var wrap = document.createElement('div');
+    wrap.className = 'sheet-backdrop';
+    wrap.id = 'sheetBackdrop';
+    function render(){
+      wrap.innerHTML = '<div class="sheet">' +
+        '<h2>' + k.ic + ' ' + k.label + ' · ' + escapeHtml(p.name) + '</h2>' +
+        '<div class="field"><label for="jDate">תאריך</label><input type="date" id="jDate" value="' + (e ? e.date : fmt(today())) + '" max="' + fmt(today()) + '"></div>' +
+        (isHarvest ? '<div class="field"><label for="jQty">כמות (רשות)</label><div class="j-qty-row">' +
+          '<input type="number" id="jQty" inputmode="decimal" min="0" step="0.1" value="' + (e && e.qty ? e.qty : '') + '" placeholder="למשל 12">' +
+          '<select class="field-select" id="jUnit">' + ['פירות','ק״ג','אשכולות'].map(function(u){ return '<option' + ((e && e.unit === u) ? ' selected' : '') + '>' + u + '</option>'; }).join('') + '</select></div></div>' : '') +
+        '<div class="field"><label for="jNote">' + (kind === 'problem' ? 'מה ראית' : 'הערה (רשות)') + '</label><textarea id="jNote" rows="2" class="pp-notes" placeholder="' +
+          ({ bloom:'למשל: פריחה מלאה, הרבה פרחים', set:'למשל: כ-20 פירות קטנים', harvest:'למשל: מתוקים, קצת קטנים', problem:'למשל: עלים מסולסלים בצימוח החדש', photo:'מה רואים בתמונה' }[kind] || '') +
+          '">' + escapeHtml(e ? e.note || '' : '') + '</textarea></div>' +
+        '<div class="field"><label>תמונה (רשות)</label>' +
+          '<label class="photo-picker" id="jPhotoPicker"><span class="ic">📷</span><span id="jPhotoLabel">' + (pendingFile ? 'נבחרה תמונה ✓' : (e && e.photoId ? 'החלפת התמונה' : 'צילום או בחירה')) + '</span>' +
+            '<input type="file" id="jPhotoInput" accept="image/*" capture="environment" style="position:absolute;inset:0;opacity:0;cursor:pointer;"></label>' +
+          (e && e.photoId && photoSrc(e.photoId) && !pendingFile ? '<img class="j-photo-big" src="' + photoSrc(e.photoId) + '" alt="">' : '') +
+        '</div>' +
+        '<div class="sheet-actions">' +
+          (e ? '<button type="button" class="btn btn-danger-ghost" id="jDelete">' + (confirmDel ? 'למחוק? לחצו שוב' : '🗑 מחיקה') + '</button>'
+             : '<button type="button" class="btn btn-ghost" id="jCancel">ביטול</button>') +
+          '<button type="button" class="btn btn-primary" id="jSave">שמירה</button>' +
+        '</div></div>';
+    }
+    render();
+    document.getElementById('app').appendChild(wrap);
+    wrap.addEventListener('change', function(ev){
+      if (ev.target.id === 'jPhotoInput'){
+        pendingFile = ev.target.files && ev.target.files[0];
+        var lab = document.getElementById('jPhotoLabel'); if (lab && pendingFile) lab.textContent = 'נבחרה תמונה ✓';
+      }
+    });
+    wrap.addEventListener('click', function(ev){
+      if (ev.target === wrap || ev.target.id === 'jCancel'){ closeSheet(); return; }
+      if (ev.target.id === 'jDelete'){
+        if (!confirmDel){
+          confirmDel = true; ev.target.textContent = 'למחוק? לחצו שוב'; return;
+        }
+        p.journal = journalOf(p).filter(function(x){ return x.id !== e.id; });
+        saveState(); closeSheet(); refreshPopup(); toast('הרשומה נמחקה');
+        return;
+      }
+      if (ev.target.id === 'jSave'){
+        var date = document.getElementById('jDate').value || fmt(today());
+        var note = document.getElementById('jNote').value.trim();
+        var qtyEl = document.getElementById('jQty'), unitEl = document.getElementById('jUnit');
+        var qty = qtyEl && qtyEl.value ? Math.max(0, parseFloat(qtyEl.value)) : null;
+        var btn = ev.target; btn.disabled = true; btn.textContent = pendingFile ? 'שומר תמונה…' : 'שומר…';
+        uploadPhoto(pendingFile).then(function(photoId){
+          if (pendingFile && !photoId) toast('התמונה לא נשמרה, הרשומה נשמרה בלעדיה', 4000);
+          if (!Array.isArray(p.journal)) p.journal = [];
+          var entry = e || { id: 'j' + Date.now() + Math.floor(Math.random()*1000), kind: kind };
+          entry.date = date; entry.note = note;
+          if (isHarvest){ entry.qty = qty || null; entry.unit = unitEl ? unitEl.value : 'פירות'; }
+          if (photoId) entry.photoId = photoId;
+          if (!e) p.journal.push(entry);
+          saveState(); closeSheet(); refreshPopup(); renderAll();
+          toast(k.ic + ' נשמר ביומן של ' + p.name);
+        });
+      }
+    });
+  }
+  function openPhotoViewer(photoId){
+    if (!photoSrc(photoId)) return;
+    closeSheet();
+    var wrap = document.createElement('div');
+    wrap.className = 'sheet-backdrop photo-viewer';
+    wrap.id = 'sheetBackdrop';
+    wrap.innerHTML = '<img src="' + photoSrc(photoId) + '" alt="">';
+    wrap.addEventListener('click', closeSheet);
+    document.getElementById('app').appendChild(wrap);
+  }
+  // Season overview: every tree's bloom, set and harvest for one year, side by side.
+  var seasonYear = null;
+  function openSeasonJournal(){
+    var trees = plantsInArea(TREES_LOC);
+    if (seasonYear === null) seasonYear = today().getFullYear();
+    var years = [];
+    trees.forEach(function(p){ journalOf(p).forEach(function(e){ var y = Number(e.date.slice(0, 4)); if (years.indexOf(y) === -1) years.push(y); }); });
+    var minY = years.length ? Math.min.apply(null, years) : seasonYear, maxY = today().getFullYear();
+    var withData = 0;
+    // trees with records this year first, the rest keep their order
+    trees = trees.map(function(p, i){ return { p:p, i:i, has: yearSummary(p, seasonYear).count ? 0 : 1 }; })
+      .sort(function(a, b){ return a.has - b.has || a.i - b.i; }).map(function(x){ return x.p; });
+    var rows = trees.map(function(p){
+      var y = yearSummary(p, seasonYear);
+      if (y.count) withData++;
+      var h = harvestText(y.harvest);
+      return '<tr data-tree="' + p.id + '"><td class="sj-name">' + plantIcon(p) + ' ' + escapeHtml(p.name) + '</td>' +
+        '<td>' + (y.bloom ? shortDate(y.bloom) : '<span class="sj-none">—</span>') + '</td>' +
+        '<td>' + (y.set ? shortDate(y.set) : '<span class="sj-none">—</span>') + '</td>' +
+        '<td>' + (h || '<span class="sj-none">—</span>') + '</td></tr>';
+    }).join('');
+    closeSheet();
+    var wrap = document.createElement('div');
+    wrap.className = 'sheet-backdrop';
+    wrap.id = 'sheetBackdrop';
+    wrap.innerHTML = '<div class="sheet"><h2>📔 יומן העונה</h2>' +
+      '<div class="cal-nav"><button type="button" data-sy="prev" aria-label="שנה קודמת"' + (seasonYear <= minY ? ' disabled' : '') + '>‹</button>' +
+        '<div class="cal-range">' + seasonYear + '</div>' +
+        '<button type="button" data-sy="next" aria-label="שנה הבאה"' + (seasonYear >= maxY ? ' disabled' : '') + '>›</button></div>' +
+      '<p class="am-hint">' + (withData ? withData + ' מתוך ' + trees.length + ' עצים עם רשומות ב-' + seasonYear + '. לחיצה על עץ פותחת אותו.' : 'עוד אין רשומות לשנה הזו. מוסיפים מתוך כל עץ, בחלק "יומן העץ".') + '</p>' +
+      '<div class="sj-wrap"><table class="sj"><thead><tr><th>עץ</th><th>🌸 פריחה</th><th>🍏 חנטה</th><th>🧺 קציר</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+      '<div class="sheet-actions" style="margin-top:14px;"><button type="button" class="btn btn-ghost" data-sy="close">סגירה</button></div></div>';
+    document.getElementById('app').appendChild(wrap);
+    wrap.addEventListener('click', function(ev){
+      if (ev.target === wrap){ closeSheet(); return; }
+      var b = ev.target.closest('[data-sy]');
+      if (b && !b.disabled){
+        if (b.dataset.sy === 'close'){ closeSheet(); return; }
+        seasonYear += b.dataset.sy === 'next' ? 1 : -1; openSeasonJournal(); return;
+      }
+      var row = ev.target.closest('tr[data-tree]');
+      if (row){ closeSheet(); popupConfirmDelete = false; openPlantPopup(row.dataset.tree); }
+    });
+  }
+  // The old journal kept a harvest log per tree; bring it in once.
+  function importOldHarvest(){
+    var raw = null;
+    try { if (lsGet('gardenHome_harvestImported')) return; raw = localStorage.getItem('gardenJournalApp_v1'); } catch(e){ return; }
+    lsSet('gardenHome_harvestImported', '1');
+    if (!raw) return;
+    var old; try { old = JSON.parse(raw); } catch(e){ return; }
+    var count = 0;
+    (old.trees || []).forEach(function(t){
+      var m = /^t(\d+)$/.exec(t.id || ''); if (!m || !Array.isArray(t.harvestLog) || !t.harvestLog.length) return;
+      var p = findPlant('p-t' + m[1]); if (!p) return;
+      if (!Array.isArray(p.journal)) p.journal = [];
+      t.harvestLog.forEach(function(h, i){
+        if (!h || !h.date) return;
+        var n = parseFloat(h.quantity);
+        p.journal.push({ id:'jold' + m[1] + '_' + i, kind:'harvest', date:h.date, qty: isNaN(n) ? null : n,
+          unit: /ק"?ג|קילו/.test(h.quantity || '') ? 'ק״ג' : 'פירות', note: isNaN(n) ? (h.quantity || '') : '' });
+        count++;
+      });
+    });
+    if (count){ saveState(); setTimeout(function(){ toast('יובא יומן הקציר מ"יומן הגינה" (' + count + ' רשומות)', 5000); }, 1600); }
+  }
+
   /* ---------- seasonal checks per tree kind (southern Israel) ---------- */
   var MEDFLY_TIP = '4–6 שבועות לפני ההבשלה לתלות מלכודת עם פיתיון חלבוני (אחת לעץ, בצד המוצל). לאסוף ולהשמיד כל פרי נשור או מנוקב, לא להשאיר על הקרקע. נקודה רכה עם חור קטן בקליפה היא סימן לנגיעה.';
   var SEASON_CHECKS = [
@@ -429,7 +645,7 @@
   function careDue(p, kind){ return kind==='water' ? waterDue(p) : kind==='iron' ? ironDue(p) : fertDue(p); }
 
   /* ---------- state ---------- */
-  var APP_VERSION = '11';
+  var APP_VERSION = '12';
   var STATE_KEY = 'gardenHome_state_v1';
   var state = null;
   try { state = JSON.parse(localStorage.getItem(STATE_KEY) || 'null'); } catch(e){ state = null; }
@@ -1086,6 +1302,7 @@
         '<div class="loc-bulk-actions">' +
           (isTrees ? '' : '<button type="button" class="bulk-btn" ' + (list.length?'':'disabled') + ' data-bulk="water" data-loc="' + loc.id + '">💧 השקיתי את כל האזור (' + list.length + ')</button>') +
           '<button type="button" class="bulk-btn fert" ' + (nf?'':'disabled') + ' data-bulk="fert" data-loc="' + loc.id + '">🌱 דשנו ממתינים (' + nf + ')</button>' +
+          (isTrees ? '<button type="button" class="bulk-btn journal" id="seasonJournalBtn">📔 יומן העונה</button>' : '') +
           (isTrees ? '<button type="button" class="bulk-btn iron" ' + (ni?'':'disabled') + ' data-bulk="iron" data-loc="' + loc.id + '">🔩 ברזל לממתינים (' + ni + ')</button>' : '') +
         '</div>' +
       '</div>' +
@@ -1131,6 +1348,7 @@
             : '<div class="pp-stat iron-stat off"><div class="k">🔩 ברזל (כלאט)</div><div class="v">לא במעקב</div><div class="d"><button type="button" class="link-btn" data-pp="ironOn">העץ צריך ברזל</button> · הצהבה בין העורקים בעלים צעירים</div></div>') +
           '<div class="pp-stat wide' + (isDue(g)?' due prune':'') + '"><div class="k">✂️ גיזום · ' + escapeHtml(rule.label) + '</div><div class="v">' + pruneText(g) + '</div><div class="d">אחרון: ' + relDay(p.lastPruned) + (rule.months.length ? ' · עונה: ' + pruneMonthsText(rule) : '') + '</div></div>' : '') +
       '</div>' +
+      (isTree ? journalHtml(p, journalShowAll) : '') +
       '<button type="button" class="btn btn-ghost pp-identify" data-pp="identify">🔍 זהה את הצמח מתמונה</button>' +
       (isTree ? '<details class="pp-prune pp-fertadv"' + (isDue(f) ? ' open' : '') + '><summary>🌱 המלצת דישון ל' + escapeHtml(frule.label) + '</summary>' +
           '<p>' + escapeHtml(frule.tip).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/\d+(?:[-–]\d+)+/g, function(x){ return '<bdi dir="ltr">' + x + '</bdi>'; }) + '</p>' +
@@ -1221,7 +1439,15 @@
     var btn = e.target.closest('[data-pp]');
     if (!btn) return;
     var id = openPlantId, act = btn.dataset.pp;
-    if (act === 'close'){ closePlantPopup(); return; }
+    if (act === 'close'){ journalShowAll = false; closePlantPopup(); return; }
+    if (act === 'jadd'){ openJournalSheet(id, btn.dataset.kind); return; }
+    if (act === 'jedit'){
+      var thumb = e.target.closest('.j-thumb');
+      var je = journalOf(findPlant(id)).filter(function(x){ return x.id === btn.dataset.entry; })[0];
+      if (thumb && je && je.photoId){ openPhotoViewer(je.photoId); return; }
+      openJournalSheet(id, null, btn.dataset.entry); return;
+    }
+    if (act === 'jall'){ journalShowAll = true; refreshPopup(); return; }
     if (CARE_FIELD[act]){ markDone(id, act); return; }
     if (act === 'ironOn' || act === 'ironOff'){
       var ip = findPlant(id); if (!ip) return;
@@ -2081,6 +2307,7 @@
   function exportBackup(){
     toast('מכין גיבוי…', 4000);
     var ids = state.plants.map(function(p){ return p.photoId; }).filter(Boolean);
+    state.plants.forEach(function(p){ journalOf(p).forEach(function(e){ if (e.photoId) ids.push(e.photoId); }); });
     var photos = {};
     idb().then(function(db){
       return Promise.all(ids.map(function(id){
@@ -2292,6 +2519,7 @@
   document.getElementById('tab-today').addEventListener('click', function(e){
     if (e.target.id === 'manageLocBtn'){ openLocationsSheet(); return; }
     if (e.target.closest('#seasonBtn')){ openSeasonSheet(); return; }
+    if (e.target.closest('#seasonJournalBtn')){ seasonYear = null; openSeasonJournal(); return; }
     if (e.target.closest('#backupNudge')){ exportBackup(); return; }
     if (e.target.closest('#todayStrip')){ state.calendarOffset = 0; renderCalendar(); openCalendarDay(fmt(today())); return; }
     if (e.target.id === 'settingsBtn'){ openSettingsSheet(); return; }
@@ -2498,7 +2726,7 @@
   fetchWeather();
   setInterval(function(){ fetchWeather(); }, 30 * 60 * 1000);
   document.addEventListener('visibilitychange', function(){ if (!document.hidden){ fetchWeather(); renderAll(); } });
-  loadAllPhotos().then(importOldJournal).then(importOldIron).then(importOldPruneNotes).then(function(){ if (freshInstall) saveState(); boot(); }, boot);
+  loadAllPhotos().then(importOldJournal).then(importOldIron).then(importOldPruneNotes).then(importOldHarvest).then(function(){ if (freshInstall) saveState(); boot(); }, boot);
   if ('serviceWorker' in navigator){
     window.addEventListener('load', function(){
       navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(function(reg){ reg.update(); }).catch(function(){});
