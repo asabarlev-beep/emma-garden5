@@ -558,6 +558,23 @@
   .ts-item.prune{background:var(--prune-soft);border-color:transparent;}
   .ts-go{font-size:12px;font-weight:600;color:var(--green);}
   .ts-none{font-size:13px;color:var(--green);font-weight:600;}
+  .wx-notes{display:flex;flex-direction:column;gap:6px;margin:-4px 0 12px;}
+  .wx-note{font-size:13px;line-height:1.45;border-radius:12px;padding:8px 12px;border:1px solid var(--line);background:var(--surface);}
+  .wx-note.rain{background:var(--prune-soft);border-color:transparent;}
+  .wx-note.heat{background:var(--terracotta-soft);border-color:transparent;}
+  .wx-note.frost{background:var(--prune-soft);border-color:var(--prune);}
+  .season-card{display:flex;flex-direction:column;gap:6px;width:100%;text-align:right;background:var(--surface);
+    border:1px solid var(--line);border-radius:16px;padding:12px 14px;margin:0 0 12px;font-family:inherit;color:var(--ink);cursor:pointer;}
+  .season-card.done{opacity:.75;}
+  .season-titles{font-size:14px;font-weight:600;line-height:1.5;}
+  .season-item{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:10px;}
+  .season-item.done{opacity:.6;}
+  .season-item p{font-size:13.5px;line-height:1.55;margin:8px 0;}
+  .si-head{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+  .si-title{font-size:15px;font-weight:700;}
+  .pp-season summary{color:var(--green-strong);}
+  .backup-nudge{display:block;width:100%;text-align:right;font-family:inherit;font-size:13px;line-height:1.5;color:var(--ink);
+    background:var(--gold-soft);border:1px dashed var(--gold);border-radius:12px;padding:9px 12px;margin:0 0 12px;cursor:pointer;}
   .due-chip{display:inline-block;margin-inline-end:6px;font-variant-numeric:tabular-nums;}
   .link-btn{border:none;background:none;padding:0;font:inherit;color:var(--green);text-decoration:underline;cursor:pointer;}
   .pp-stat.off .v{color:var(--ink-soft);}
