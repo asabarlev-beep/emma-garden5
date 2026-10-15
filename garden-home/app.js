@@ -199,11 +199,185 @@
     return t[season(today())] === null;
   }
   // { unknown } when never recorded; { off } for fertilizing out of season
+
+  /* ---------- weather (Nir Yitzhak) — rain counts as watering outdoors, heat and frost warnings ---------- */
+  var GARDEN_LAT = 31.24, GARDEN_LON = 34.36;
+  var RAIN_WATERS_MM = 5, RAIN_SOON_MM = 10, HEAT_C = 35, FROST_C = 3;
+  var WEATHER_KEY = 'gh-weather', WEATHER_TTL = 3 * 60 * 60 * 1000;
+  var weather = null; // { at, days: { 'YYYY-MM-DD': { rain, tmax, tmin } } }
+  try { weather = JSON.parse(lsGet(WEATHER_KEY) || 'null'); } catch(e){ weather = null; }
+  function weatherDay(ds){ return weather && weather.days ? weather.days[ds] : null; }
+  function fetchWeather(force){
+    if (!force && weather && Date.now() - weather.at < WEATHER_TTL) return;
+    var url = 'https://api.open-meteo.com/v1/forecast?latitude=' + GARDEN_LAT + '&longitude=' + GARDEN_LON +
+      '&daily=precipitation_sum,temperature_2m_max,temperature_2m_min&past_days=7&forecast_days=4&timezone=Asia%2FJerusalem';
+    fetch(url).then(function(r){ return r.ok ? r.json() : null; }).then(function(j){
+      if (!j || !j.daily || !j.daily.time) return;
+      var days = {};
+      j.daily.time.forEach(function(ds, i){
+        days[ds] = { rain: j.daily.precipitation_sum[i] || 0, tmax: j.daily.temperature_2m_max[i], tmin: j.daily.temperature_2m_min[i] };
+      });
+      weather = { at: Date.now(), days: days };
+      lsSet(WEATHER_KEY, JSON.stringify(weather));
+      renderAll();
+    }).catch(function(){});
+  }
+  // An area gets rain unless it is indoors or covered (the user can override in the area editor).
+  function rainExposed(loc){
+    if (!loc || loc.kind === 'trees') return false;
+    if (typeof loc.rainExposed === 'boolean') return loc.rainExposed;
+    return loc.lightLevel === 'full' || loc.lightLevel === 'partial';
+  }
+  // The latest past day (up to today) with enough rain to count as a watering.
+  function lastRainDate(){
+    if (!weather || !weather.days) return null;
+    var ts = fmt(today()), best = null;
+    Object.keys(weather.days).forEach(function(ds){
+      if (ds <= ts && weather.days[ds].rain >= RAIN_WATERS_MM && (!best || ds > best)) best = ds;
+    });
+    return best;
+  }
+  function effectiveLastWatered(p){
+    var lw = p.lastWatered;
+    if (!lw) return null;
+    if (rainExposed(getLocation(p.locationId))){
+      var r = lastRainDate();
+      if (r && r > lw) return r;
+    }
+    return lw;
+  }
+  function heatToday(){ var d = weatherDay(fmt(today())); return d && d.tmax >= HEAT_C ? d.tmax : null; }
+  var FROST_KEYS = ['מנגו','פפאי','פפיה','אבוקדו','פסיפלור'];
+  function weatherNotes(){
+    if (!weather || !weather.days) return [];
+    var notes = [], t = today(), ts = fmt(t), tm = fmt(addDays(t, 1)), y = fmt(addDays(t, -1));
+    var WD = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
+    var dayName = function(ds){ return ds === ts ? 'היום' : ds === tm ? 'מחר' : ds === y ? 'אתמול' : 'ביום ' + WD[parse(ds).getDay()]; };
+    var outdoorAreas = potLocations().filter(function(l){ return rainExposed(l) && plantsInArea(l.id).length; });
+    var r = lastRainDate();
+    if (r && diffDays(t, parse(r)) <= 2 && outdoorAreas.length){
+      notes.push({ cls:'rain', text:'🌧 ירדו ' + Math.round(weather.days[r].rain) + ' מ״מ ' + dayName(r) + ': ' + outdoorAreas.length + ' אזורים בחוץ נחשבים מושקים' });
+    }
+    var soon = [ts, tm, fmt(addDays(t, 2))].filter(function(ds){ var d = weatherDay(ds); return d && d.rain >= RAIN_SOON_MM; });
+    if (soon.length){
+      notes.push({ cls:'rain', text:'☔ צפוי גשם ' + dayName(soon[0]) + ' (' + Math.round(weatherDay(soon[0]).rain) + ' מ״מ): לא להשקות בחוץ, ולדחות דישון עד אחרי הגשם' });
+    }
+    var hot = [ts, tm].filter(function(ds){ var d = weatherDay(ds); return d && d.tmax >= HEAT_C; });
+    if (hot.length){
+      var fullSun = potLocations().filter(function(l){ return l.lightLevel === 'full' && plantsInArea(l.id).length; }).length;
+      notes.push({ cls:'heat', text:'🔥 שרב ' + dayName(hot[0]) + ' (' + Math.round(weatherDay(hot[0]).tmax) + '°): ' + (fullSun ? 'עציצים בשמש מלאה מושקים יום מוקדם; ' : '') + 'לבדוק שהטפטפות של העצים עובדות' });
+    }
+    var cold = [ts, tm].filter(function(ds){ var d = weatherDay(ds); return d && d.tmin <= FROST_C; });
+    if (cold.length){
+      var sensitive = plantsInArea(TREES_LOC).filter(function(p){ return FROST_KEYS.some(function(k){ return (p.name + ' ' + (p.species||'')).indexOf(k) !== -1; }); });
+      notes.push({ cls:'frost', text:'❄️ קרה ' + (cold[0] === ts ? 'הלילה' : 'מחר בלילה') + ' (' + Math.round(weatherDay(cold[0]).tmin) + '°): ' +
+        (sensitive.length ? 'לכסות ' + sensitive.map(function(p){ return p.name; }).join(', ') + ', ' : '') + 'להשקות היום ולהכניס עציצים רגישים' });
+    }
+    return notes;
+  }
+
+  /* ---------- seasonal checks per tree kind (southern Israel) ---------- */
+  var MEDFLY_TIP = '4–6 שבועות לפני ההבשלה לתלות מלכודת עם פיתיון חלבוני (אחת לעץ, בצד המוצל). לאסוף ולהשמיד כל פרי נשור או מנוקב, לא להשאיר על הקרקע. נקודה רכה עם חור קטן בקליפה היא סימן לנגיעה.';
+  var SEASON_CHECKS = [
+    { id:'medfly-stone', icon:'🪰', title:'זבוב הפירות', months:[4,5,6], keys:['נקטרינ','אפרסק','משמש','שזיף'], tip:MEDFLY_TIP },
+    { id:'medfly-summer', icon:'🪰', title:'זבוב הפירות', months:[6,7,8,9], keys:['מנגו','תאנ','גויאב','תפוח ענה','תפוח ורד'], tip:MEDFLY_TIP },
+    { id:'medfly-autumn', icon:'🪰', title:'זבוב הפירות', months:[9,10,11], keys:['פינק','אפרסמון','תפוז','קלמנטינ','מנדרינ'], tip:MEDFLY_TIP },
+    { id:'leafminer', icon:'🍃', title:'מנהרן עלי ההדרים', months:[4,5,9,10], keys:['ליים','לימון','תפוז','אשכולית','קלמנטינ','מנדרינ','פומלה'], tip:'בכל גל צימוח חדש: עלים צעירים מסולסלים עם מנהרות כסופות מתפתלות. בעץ בוגר הנזק קוסמטי ואין צורך לטפל. בעץ צעיר: לרסס שמן קיצי על הצימוח החדש כל 7–10 ימים, עד שהעלים מתקשים.' },
+    { id:'mango-mildew', icon:'🌼', title:'קימחון בתפרחות המנגו', months:[2,3], keys:['מנגו'], tip:'בתחילת הפריחה לבדוק אם יש אבקה לבנה על התפרחות. אם כן: לרסס גופרית מוקדם בבוקר ולחזור אחרי שבועיים. בלי טיפול התפרחות מתייבשות ואין חנטה.' },
+    { id:'thin-stone', icon:'🫳', title:'דילול פירות', months:[3,4], keys:['נקטרינ','אפרסק','שזיף'], tip:'כשהפירות בגודל אגוז לוז: להשאיר פרי אחד כל 15–20 ס״מ לאורך הענף, ולהסיר את הקטנים והפגומים. פחות פירות נותנים פירות גדולים ומתוקים יותר, ומונעים שבירת ענפים.' },
+    { id:'thin-apple', icon:'🫳', title:'דילול תפוחים', months:[4,5], keys:['תפוח'], tip:'בכל אשכול להשאיר פרי אחד, המרכזי והגדול, ואשכול אחד כל 15–20 ס״מ. בעץ צעיר להשאיר מעט פירות, כדי שהאנרגיה תלך לצימוח ולא יהיה עומס.' },
+    { id:'pom-butterfly', icon:'🦋', title:'פרפר הרימון', months:[6,7,8,9], keys:['רימון'], tip:'פרי עם חור בכתר ונוזל דביק: יש זחל בפנים. אפשר לעטוף פירות בשקיות נייר או רשת כשהם בגודל אגוז, ולאסוף פירות נגועים. השקיה סדירה מונעת גם פיצוח פרי.' },
+    { id:'grape-mildew', icon:'🍇', title:'קימחון בגפן', months:[4,5,6], keys:['גפן','ענב','איזבלה'], tip:'מהלבלוב ועד שהענבים מתרככים: לבדוק אבקה לבנה-אפורה על עלים ואשכולות. גופרית אבקה כל 10–14 ימים, לא בשרב מעל 32°, כדי לא לשרוף.' },
+    { id:'trunk-sun', icon:'☀️', title:'כוויות שמש בגזע', months:[5,6], keys:['אבוקדו','ליים','לימון','תפוז','אשכולית','מנגו'], tip:'גזע וענפים שחשופים לשמש: לסייד בלבן (סיד, או צבע לבן מדולל במים 1:1). חשוב במיוחד בעצים צעירים ואחרי גיזום.' },
+    { id:'frost-prep', icon:'❄️', title:'הכנה לקרה', months:[12,1,2], keys:FROST_KEYS, tip:'להכין יריעת כיסוי (אגריל) ליד העצים הרגישים. בלילה שצפויים בו 3° ומטה: להשקות ביום שלפני ולכסות עד הקרקע בערב. האפליקציה מתריעה כשצפויה קרה.' }
+  ];
+  function treeMatches(p, keys){ var hay = (p.name || '') + ' ' + (p.species || ''); return keys.some(function(k){ return hay.indexOf(k) !== -1; }); }
+  function monthKey(){ var t = today(); return t.getFullYear() + '-' + pad(t.getMonth()+1); }
+  function seasonChecksNow(){
+    var m = today().getMonth()+1, trees = plantsInArea(TREES_LOC), out = [];
+    SEASON_CHECKS.forEach(function(c){
+      if (c.months.indexOf(m) === -1) return;
+      var hit = trees.filter(function(p){ return treeMatches(p, c.keys); });
+      if (!hit.length) return;
+      out.push({ check:c, trees:hit, done: !!(state.seasonDone && state.seasonDone[c.id + '@' + monthKey()]) });
+    });
+    return out;
+  }
+  function seasonCardHtml(){
+    var list = seasonChecksNow();
+    if (!list.length) return '';
+    var open = list.filter(function(x){ return !x.done; });
+    var titles = [];
+    open.forEach(function(x){ if (titles.indexOf(x.check.icon + ' ' + x.check.title) === -1) titles.push(x.check.icon + ' ' + x.check.title); });
+    return '<button type="button" class="season-card' + (open.length ? '' : ' done') + '" id="seasonBtn">' +
+      '<span class="ts-title">החודש בגינה · ' + MONTH_NAMES[today().getMonth()] + '</span>' +
+      '<span class="season-titles">' + (open.length ? titles.join(' · ') : '✓ כל הבדיקות של החודש סומנו') + '</span>' +
+      '<span class="ts-go">' + (open.length ? (open.length === 1 ? 'בדיקה פתוחה אחת ‹' : open.length + ' בדיקות פתוחות ‹') : 'לפרטים ‹') + '</span></button>';
+  }
+  function openSeasonSheet(){
+    closeSheet();
+    var list = seasonChecksNow();
+    var wrap = document.createElement('div');
+    wrap.className = 'sheet-backdrop';
+    wrap.id = 'sheetBackdrop';
+    wrap.innerHTML = '<div class="sheet"><h2>החודש בגינה · ' + MONTH_NAMES[today().getMonth()] + '</h2>' +
+      '<p class="am-hint">בדיקות עונתיות לעצים שלך. סמנו "בדקתי" כשטיפלתם, והבדיקה תחזור בחודש הבא אם עדיין רלוונטית.</p>' +
+      list.map(function(x){
+        return '<div class="season-item' + (x.done ? ' done' : '') + '">' +
+          '<div class="si-head"><span class="si-title">' + x.check.icon + ' ' + escapeHtml(x.check.title) + '</span>' +
+            '<button type="button" class="cal-area-btn' + (x.done ? '' : ' water') + '" data-season="' + x.check.id + '">' + (x.done ? '↩ לא בדקתי' : '✓ בדקתי') + '</button></div>' +
+          '<p>' + escapeHtml(x.check.tip).replace(/\d+(?:[-–:]\d+)+/g, function(n){ return '<bdi dir="ltr">' + n + '</bdi>'; }) + '</p>' +
+          plantChips(x.trees.map(function(p){ return p.id; })) + '</div>';
+      }).join('') +
+      '<div class="sheet-actions" style="margin-top:14px;"><button type="button" class="btn btn-ghost" data-cal-close="1">סגירה</button></div></div>';
+    document.getElementById('app').appendChild(wrap);
+    wrap.addEventListener('click', function(e){
+      if (e.target === wrap || e.target.closest('[data-cal-close]')){ closeSheet(); return; }
+      var chip = e.target.closest('[data-cal-plant]');
+      if (chip){ closeSheet(); popupConfirmDelete = false; openPlantPopup(chip.dataset.calPlant); return; }
+      var sb = e.target.closest('[data-season]');
+      if (sb){
+        if (!state.seasonDone) state.seasonDone = {};
+        var k = sb.dataset.season + '@' + monthKey();
+        if (state.seasonDone[k]) delete state.seasonDone[k]; else state.seasonDone[k] = true;
+        saveState(); renderAll(); openSeasonSheet();
+      }
+    });
+  }
+  function treeSeasonHtml(p){
+    var m = today().getMonth()+1;
+    var mine = SEASON_CHECKS.filter(function(c){ return c.months.indexOf(m) !== -1 && treeMatches(p, c.keys); });
+    if (!mine.length) return '';
+    return '<details class="pp-prune pp-season" open><summary>👀 החודש לבדוק</summary>' + mine.map(function(c){
+      return '<p><b>' + c.icon + ' ' + escapeHtml(c.title) + ':</b> ' + escapeHtml(c.tip).replace(/\d+(?:[-–:]\d+)+/g, function(n){ return '<bdi dir="ltr">' + n + '</bdi>'; }) + '</p>';
+    }).join('') + '</details>';
+  }
+
+  /* ---------- backup safety ---------- */
+  var BACKUP_KEY = 'gh-lastBackup', FIRST_SEEN_KEY = 'gh-firstSeen', BACKUP_EVERY_DAYS = 30;
+  if (!lsGet(FIRST_SEEN_KEY)) lsSet(FIRST_SEEN_KEY, fmt(today()));
+  function backupAgeDays(){
+    var last = lsGet(BACKUP_KEY);
+    return last ? diffDays(today(), parse(last)) : null;
+  }
+  function backupReminderHtml(){
+    if (!state.plants.length) return '';
+    var age = backupAgeDays();
+    var since = diffDays(today(), parse(lsGet(FIRST_SEEN_KEY) || fmt(today())));
+    if (age === null ? since < 7 : age < BACKUP_EVERY_DAYS) return '';
+    return '<button type="button" class="backup-nudge" id="backupNudge">💾 ' +
+      (age === null ? 'עוד לא נשמר גיבוי.' : 'הגיבוי האחרון לפני ' + age + ' ימים.') +
+      ' הנתונים שמורים רק בטלפון הזה. <b>לגיבוי עכשיו</b></button>';
+  }
+  try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch(e){}
+
   function waterDue(p){
     if (p.type === 'tree') return { na:true }; // trees are on automatic drip irrigation
     if (!p.lastWatered) return { unknown:true };
-    var last = parse(p.lastWatered);
-    return { daysUntil: diffDays(addDays(last, waterInterval(p, last)), today()) };
+    var last = parse(effectiveLastWatered(p));
+    var until = diffDays(addDays(last, waterInterval(p, last)), today());
+    if (until > 0 && heatToday() && getLocation(p.locationId).lightLevel === 'full') until -= 1; // heat wave: a day earlier
+    return { daysUntil: until, rained: effectiveLastWatered(p) !== p.lastWatered };
   }
   function fertDue(p){
     if (p.type === 'tree'){
@@ -255,7 +429,7 @@
   function careDue(p, kind){ return kind==='water' ? waterDue(p) : kind==='iron' ? ironDue(p) : fertDue(p); }
 
   /* ---------- state ---------- */
-  var APP_VERSION = '10';
+  var APP_VERSION = '11';
   var STATE_KEY = 'gardenHome_state_v1';
   var state = null;
   try { state = JSON.parse(localStorage.getItem(STATE_KEY) || 'null'); } catch(e){ state = null; }
@@ -838,8 +1012,10 @@
     if (fertAreas || tc.fert) items.push('<span class="ts-item fert"><b>🌱 ' + (fertAreas + tc.fert) + '</b> לדשן' + (fertAreas && tc.fert ? ' (' + fertAreas + (fertAreas === 1 ? ' אזור, ' : ' אזורים, ') + tc.fert + (tc.fert === 1 ? ' עץ)' : ' עצים)') : tc.fert ? ' (עצים)' : ' (אזורים)') + '</span>');
     if (tc.iron) items.push('<span class="ts-item iron"><b>🔩 ' + tc.iron + '</b> ' + (tc.iron === 1 ? 'עץ' : 'עצים') + ' לברזל</span>');
     if (tc.prune) items.push('<span class="ts-item prune"><b>✂️ ' + tc.prune + '</b> ' + (tc.prune === 1 ? 'עץ' : 'עצים') + ' לגזום</span>');
-    if (!items.length) return '<div class="today-strip calm"><span class="ts-title">היום</span><span class="ts-none">✓ אין משימות. הגינה מטופלת.</span></div>';
-    return '<button type="button" class="today-strip" id="todayStrip"><span class="ts-title">מה עושים היום</span><span class="ts-items">' + items.join('') + '</span><span class="ts-go">לרשימה המלאה ‹</span></button>';
+    var notes = weatherNotes().map(function(n){ return '<div class="wx-note ' + n.cls + '">' + escapeHtml(n.text) + '</div>'; }).join('');
+    var extra = (notes ? '<div class="wx-notes">' + notes + '</div>' : '') + seasonCardHtml() + backupReminderHtml();
+    if (!items.length) return '<div class="today-strip calm"><span class="ts-title">היום</span><span class="ts-none">✓ אין משימות. הגינה מטופלת.</span></div>' + extra;
+    return '<button type="button" class="today-strip" id="todayStrip"><span class="ts-title">מה עושים היום</span><span class="ts-items">' + items.join('') + '</span><span class="ts-go">לרשימה המלאה ‹</span></button>' + extra;
   }
   function sectionTileHtml(loc){
     var list = plantsInArea(loc.id);
@@ -877,7 +1053,7 @@
       if (g.next) nextBits.push('גיזום ב' + MONTH_NAMES[g.next-1]);
       sub = todo.length ? todo.join(' · ') : (nextBits.length ? nextBits.join(' · ') : '✓ אין משימות כרגע');
     } else {
-      sub = waterText(w) + (p.waterAmount ? ' · ' + escapeHtml(p.waterAmount) : '') + (isDue(f) ? ' · לדשן' : '');
+      sub = waterText(w) + (w.rained ? ' · 🌧 ירד גשם' : '') + (p.waterAmount ? ' · ' + escapeHtml(p.waterAmount) : '') + (isDue(f) ? ' · לדשן' : '');
     }
     var health = (p.healthCode && p.healthCode !== 'ok') ? ' <span class="pot-health" style="color:' + HEALTH_DOT_VAR[p.healthCode] + '">🩺</span>' : '';
     return '<button type="button" class="pot-row" data-plant="' + p.id + '">' +
@@ -967,6 +1143,7 @@
         '<label class="pp-field">כמה מים בכל השקיה<input type="text" id="ppAmount" value="' + escapeHtml(p.waterAmount || '') + '" placeholder="למשל: כוס / חצי ליטר"></label>' +
         '<label class="pp-field">כל כמה ימים להשקות<input type="number" id="ppEvery" inputmode="numeric" min="1" max="60" value="' + (p.waterEvery || '') + '" placeholder="' + autoIntervalText(p) + '"></label>' +
       '</div>') +
+      (isTree ? treeSeasonHtml(p) : '') +
       (p.careNote ? '<div class="pp-health">🔍 ' + escapeHtml(p.careNote) + '</div>' : '') +
       '<label class="pp-field" style="margin-bottom:12px;">הערות<textarea id="ppNotes" rows="2" class="pp-notes" placeholder="מזיקים, פריחה, העברת עציץ…">' + escapeHtml(p.notes || '') + '</textarea></label>' +
       health +
@@ -1175,7 +1352,7 @@
     if (from < t) from = t;
     state.plants.forEach(function(p){
       if (p.type !== 'tree'){
-        projectDates(p.lastWatered, function(d){ return waterInterval(p, d); }, function(){ return false; }, from, to)
+        projectDates(effectiveLastWatered(p), function(d){ return waterInterval(p, d); }, function(){ return false; }, from, to)
           .forEach(function(d){ add(d, 'water', p.id); });
       }
       if (p.type !== 'tree'){
@@ -1685,7 +1862,12 @@
         '<div class="field"><label>כמות אור באזור <span class="am-note">(קובעת כל כמה ימים להשקות)</span></label>' +
           '<div class="choice-row" id="amLight">' + Object.keys(LIGHT_LABEL).map(function(k){
             return '<button type="button" class="choice' + (k === l.lightLevel ? ' selected' : '') + '" data-val="' + k + '">' + LIGHT_ICON[k] + ' ' + LIGHT_LABEL[k] + '</button>';
-          }).join('') + '</div></div>') +
+          }).join('') + '</div></div>' +
+        '<div class="field"><label>גשם מגיע לאזור? <span class="am-note">(אחרי גשם האזור נחשב מושקה)</span></label>' +
+          '<div class="choice-row" id="amRain">' +
+            '<button type="button" class="choice' + (rainExposed(l) ? ' selected' : '') + '" data-val="yes">🌧 כן, חשוף</button>' +
+            '<button type="button" class="choice' + (rainExposed(l) ? '' : ' selected') + '" data-val="no">☂️ לא, מקורה</button>' +
+          '</div></div>') +
       (isNew ? '' : '<div class="field"><label>' + (isTrees ? 'העצים' : 'העציצים באזור') + ' (' + inArea.length + ')</label>' +
         (rows ? '<div class="am-plants">' + rows + '</div>' : '<div class="am-note">אין עדיין צמחים באזור הזה.</div>') + '</div>') +
       (addable ? '<details class="am-details"' + (isNew ? ' open' : '') + '><summary>➕ הוספת עציצים מאזורים אחרים</summary><div class="am-addlist">' + addable + '</div></details>' : '') +
@@ -1742,6 +1924,8 @@
       l.name = name;
       if (sel) l.lightLevel = sel.dataset.val;
     }
+    var rainSel = document.querySelector('#amRain .choice.selected');
+    if (rainSel && l.kind !== 'trees') l.rainExposed = rainSel.dataset.val === 'yes';
     var moved = 0;
     document.querySelectorAll('#sheetBackdrop .am-move').forEach(function(s){
       if (s.value){ var p = findPlant(s.dataset.plant); if (p){ p.locationId = s.value; moved++; } }
@@ -1757,7 +1941,7 @@
   function onAreaSheetClick(e){
     var wrap = document.getElementById('sheetBackdrop');
     if (e.target === wrap){ closeSheet(); return; }
-    var choice = e.target.closest('#amLight .choice');
+    var choice = e.target.closest('#amLight .choice, #amRain .choice');
     if (choice){
       Array.prototype.forEach.call(choice.parentElement.children, function(b){ b.classList.toggle('selected', b === choice); });
       return;
@@ -1909,6 +2093,8 @@
     }).catch(function(){}).then(function(){
       var payload = { app:'גינת הבית', exportedAt:new Date().toISOString(), plants:state.plants, locations:state.locations, log:state.log, photos:photos };
       downloadFile('גינת-הבית-גיבוי-' + fmt(today()) + '.json', new Blob([JSON.stringify(payload)], { type:'application/json' }));
+      lsSet(BACKUP_KEY, fmt(today()));
+      renderToday();
       toast('קובץ הגיבוי ירד לתיקיית ההורדות');
     });
   }
@@ -2105,6 +2291,8 @@
 
   document.getElementById('tab-today').addEventListener('click', function(e){
     if (e.target.id === 'manageLocBtn'){ openLocationsSheet(); return; }
+    if (e.target.closest('#seasonBtn')){ openSeasonSheet(); return; }
+    if (e.target.closest('#backupNudge')){ exportBackup(); return; }
     if (e.target.closest('#todayStrip')){ state.calendarOffset = 0; renderCalendar(); openCalendarDay(fmt(today())); return; }
     if (e.target.id === 'settingsBtn'){ openSettingsSheet(); return; }
     if (e.target.id === 'exportBtn'){ exportBackup(); return; }
@@ -2307,6 +2495,9 @@
       else closePlantPopup();
     }
   }
+  fetchWeather();
+  setInterval(function(){ fetchWeather(); }, 30 * 60 * 1000);
+  document.addEventListener('visibilitychange', function(){ if (!document.hidden){ fetchWeather(); renderAll(); } });
   loadAllPhotos().then(importOldJournal).then(importOldIron).then(importOldPruneNotes).then(function(){ if (freshInstall) saveState(); boot(); }, boot);
   if ('serviceWorker' in navigator){
     window.addEventListener('load', function(){
