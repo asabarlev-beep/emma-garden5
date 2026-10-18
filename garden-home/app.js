@@ -507,13 +507,28 @@
     { id:'trunk-sun', icon:'☀️', title:'כוויות שמש בגזע', months:[5,6], keys:['אבוקדו','ליים','לימון','תפוז','אשכולית','מנגו'], tip:'גזע וענפים שחשופים לשמש: לסייד בלבן (סיד, או צבע לבן מדולל במים 1:1). חשוב במיוחד בעצים צעירים ואחרי גיזום.' },
     { id:'frost-prep', icon:'❄️', title:'הכנה לקרה', months:[12,1,2], keys:FROST_KEYS, tip:'להכין יריעת כיסוי (אגריל) ליד העצים הרגישים. בלילה שצפויים בו 3° ומטה: להשקות ביום שלפני ולכסות עד הקרקע בערב. האפליקציה מתריעה כשצפויה קרה.' }
   ];
+  // Harvest months: what the owner marked on the tree's year strip, otherwise the
+  // months a harvest was logged in its journal. null = not known yet.
+  function harvestMonthsOf(p){
+    if (Array.isArray(p.harvestMonths)) return p.harvestMonths.slice().sort(function(a, b){ return a - b; });
+    var ms = [];
+    journalOf(p).forEach(function(e){ if (e.kind === 'harvest'){ var m = Number(e.date.slice(5, 7)); if (ms.indexOf(m) === -1) ms.push(m); } });
+    return ms.length ? ms.sort(function(a, b){ return a - b; }) : null;
+  }
+  // Fruit-fly checks follow the tree's own harvest when it is known: from a month before until the harvest ends.
+  function checkMonthsFor(c, p){
+    if (/^medfly/.test(c.id)){
+      var hm = harvestMonthsOf(p);
+      if (hm && hm.length) return [hm[0] === 1 ? 12 : hm[0] - 1].concat(hm);
+    }
+    return c.months;
+  }
   function treeMatches(p, keys){ var hay = (p.name || '') + ' ' + (p.species || ''); return keys.some(function(k){ return hay.indexOf(k) !== -1; }); }
   function monthKey(){ var t = today(); return t.getFullYear() + '-' + pad(t.getMonth()+1); }
   function seasonChecksNow(){
     var m = today().getMonth()+1, trees = plantsInArea(TREES_LOC), out = [];
     SEASON_CHECKS.forEach(function(c){
-      if (c.months.indexOf(m) === -1) return;
-      var hit = trees.filter(function(p){ return treeMatches(p, c.keys); });
+      var hit = trees.filter(function(p){ return treeMatches(p, c.keys) && checkMonthsFor(c, p).indexOf(m) !== -1; });
       if (!hit.length) return;
       out.push({ check:c, trees:hit, done: !!(state.seasonDone && state.seasonDone[c.id + '@' + monthKey()]) });
     });
@@ -562,7 +577,7 @@
   }
   function treeSeasonHtml(p){
     var m = today().getMonth()+1;
-    var mine = SEASON_CHECKS.filter(function(c){ return c.months.indexOf(m) !== -1 && treeMatches(p, c.keys); });
+    var mine = SEASON_CHECKS.filter(function(c){ return treeMatches(p, c.keys) && checkMonthsFor(c, p).indexOf(m) !== -1; });
     if (!mine.length) return '';
     return '<details class="pp-prune pp-season" open><summary>👀 החודש לבדוק</summary>' + mine.map(function(c){
       return '<p><b>' + c.icon + ' ' + escapeHtml(c.title) + ':</b> ' + escapeHtml(c.tip).replace(/\d+(?:[-–:]\d+)+/g, function(n){ return '<bdi dir="ltr">' + n + '</bdi>'; }) + '</p>';
@@ -645,7 +660,7 @@
   function careDue(p, kind){ return kind==='water' ? waterDue(p) : kind==='iron' ? ironDue(p) : fertDue(p); }
 
   /* ---------- state ---------- */
-  var APP_VERSION = '12';
+  var APP_VERSION = '13';
   var STATE_KEY = 'gardenHome_state_v1';
   var state = null;
   try { state = JSON.parse(localStorage.getItem(STATE_KEY) || 'null'); } catch(e){ state = null; }
@@ -1348,6 +1363,7 @@
             : '<div class="pp-stat iron-stat off"><div class="k">🔩 ברזל (כלאט)</div><div class="v">לא במעקב</div><div class="d"><button type="button" class="link-btn" data-pp="ironOn">העץ צריך ברזל</button> · הצהבה בין העורקים בעלים צעירים</div></div>') +
           '<div class="pp-stat wide' + (isDue(g)?' due prune':'') + '"><div class="k">✂️ גיזום · ' + escapeHtml(rule.label) + '</div><div class="v">' + pruneText(g) + '</div><div class="d">אחרון: ' + relDay(p.lastPruned) + (rule.months.length ? ' · עונה: ' + pruneMonthsText(rule) : '') + '</div></div>' : '') +
       '</div>' +
+      (isTree ? yearStripHtml(p) : '') +
       (isTree ? journalHtml(p, journalShowAll) : '') +
       '<button type="button" class="btn btn-ghost pp-identify" data-pp="identify">🔍 זהה את הצמח מתמונה</button>' +
       (isTree ? '<details class="pp-prune pp-fertadv"' + (isDue(f) ? ' open' : '') + '><summary>🌱 המלצת דישון ל' + escapeHtml(frule.label) + '</summary>' +
@@ -1379,6 +1395,18 @@
     '</div>';
   }
   var DAY_SHORT = ['א׳','ב׳','ג׳','ד׳','ה׳','ו׳','ש׳'];
+  var MONTH_SHORT = ['ינו׳','פבר׳','מרץ','אפר׳','מאי','יוני','יולי','אוג׳','ספט׳','אוק׳','נוב׳','דצמ׳'];
+  // The tree's year at a glance: fertilizing window, harvest months (tap to mark) and pruning season.
+  function yearStripHtml(p){
+    var fr = treeFertRule(p), pr = pruneRule(p), hm = harvestMonthsOf(p) || [], cur = today().getMonth()+1, cells = '';
+    for (var m=1; m<=12; m++){
+      var ic = (fr.months.indexOf(m) !== -1 ? '🌱' : '') + (hm.indexOf(m) !== -1 ? '<br>🧺' : '') + (pr.months.indexOf(m) !== -1 ? '<br>✂️' : '');
+      cells += '<button type="button" class="ys-cell' + (m === cur ? ' now' : '') + '" data-pp="hvm" data-m="' + m + '" aria-label="קטיף ב' + MONTH_NAMES[m-1] + '">' +
+        '<span class="ys-m">' + MONTH_SHORT[m-1] + '</span><span class="ys-i">' + ic + '</span></button>';
+    }
+    return '<div class="year-box"><div class="ys-title">📅 לוח השנה של העץ</div><div class="year-strip">' + cells + '</div>' +
+      '<div class="ys-legend">🌱 דישון · 🧺 קטיף · ✂️ גיזום · ' + (hm.length ? 'לחיצה על חודש מוסיפה או מורידה קטיף.' : '<b>לחצו על החודשים שבהם העץ נותן פרי</b> — מזה נגזרות בדיקות זבוב הפירות.') + '</div></div>';
+  }
   function nextWaterDateText(p){
     if (!p.lastWatered) return '';
     var last = parse(p.lastWatered);
@@ -1448,6 +1476,15 @@
       openJournalSheet(id, null, btn.dataset.entry); return;
     }
     if (act === 'jall'){ journalShowAll = true; refreshPopup(); return; }
+    if (act === 'hvm'){
+      var tp = findPlant(id), mm = Number(btn.dataset.m);
+      var cur = harvestMonthsOf(tp) || [], at = cur.indexOf(mm);
+      if (at === -1) cur.push(mm); else cur.splice(at, 1);
+      tp.harvestMonths = cur;
+      saveState(); renderAll();
+      toast(at === -1 ? '🧺 קטיף ב' + MONTH_NAMES[mm-1] : 'הוסר הקטיף ב' + MONTH_NAMES[mm-1]);
+      return;
+    }
     if (CARE_FIELD[act]){ markDone(id, act); return; }
     if (act === 'ironOn' || act === 'ironOff'){
       var ip = findPlant(id); if (!ip) return;
