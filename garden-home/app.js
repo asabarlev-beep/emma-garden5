@@ -20,8 +20,8 @@
   var TREE_WATER = { summer:7, transition:14, winter:30 };
   // null = no fertilizing in that season.
   var FERT = {
-    houseplant: { summer:14, transition:21, winter:null },
-    succulent:  { summer:30, transition:45, winter:null },
+    houseplant: { summer:14, transition:21, autumn:30, winter:null },
+    succulent:  { summer:30, transition:45, autumn:null, winter:null },
     tree:       { summer:30, transition:45, winter:null }
   };
   // Iron chelate (Fe-EDDHA) for fruit trees on calcareous soil: about once per
@@ -160,6 +160,47 @@
     return 'transition';
   }
   function startOfWeek(d){ var r=startOfDay(d); r.setDate(r.getDate()-r.getDay()); return r; }
+  // Pot feeding tapers in autumn (Oct–Nov): leafy plants monthly, succulents not at all.
+  function fertSeason(d){ var m = d.getMonth()+1; return (m===10||m===11) ? 'autumn' : season(d); }
+
+  /* ---------- watering by species (base = days between waterings indoors in spring/autumn) ---------- */
+  // Matched against name + species, first hit wins, so specific keys come first.
+  // winterDry: goes (semi-)dormant in winter and needs much less water then.
+  var SPECIES_WATER = [
+    { label:'קקטוס חג המולד', keys:['חג המולד'], base:7, tip:'קקטוס יערות, לא מדברי: אוהב לחות קלה. להשקות כשהשכבה העליונה יבשה.' },
+    { label:'קקטוס זנב עכבר', keys:['זנב עכבר','Aporocactus'], base:10, tip:'להתייבש כמעט לגמרי בין השקיות; בחורף מעט מאוד.' },
+    { label:'אכינופסיס', keys:['אכינופסיס'], base:14, winterDry:true, tip:'בחורף כמעט בלי מים — המנוחה הקרירה והיבשה מביאה פריחה באביב.' },
+    { label:'קקטוס', keys:['קקטוס'], base:14, tip:'להשקות רק כשהאדמה יבשה לגמרי. בחורף מעט מאוד.' },
+    { label:'אלוורה', keys:['אלוורה'], base:12, tip:'עמידה מאוד ליובש. עודף מים מרקיב את הבסיס.' },
+    { label:'זמיוקולקס', keys:['זמיוקולקס','ZZ'], base:12, tip:'אוגר מים בפקעות. להשקות רק כשהאדמה יבשה לגמרי — עודף מים הוא הסכנה העיקרית.' },
+    { label:'שרשרת לבבות', keys:['שרשרת לבבות','Ceropegia'], base:10, tip:'כמו סוקולנט: לתת לאדמה להתייבש בין השקיות.' },
+    { label:'זנב חמור', keys:['זנב חמור','Sedum'], base:10, tip:'סוקולנט עדין: להשקות כשהאדמה יבשה, בלי להרטיב את העלים.' },
+    { label:'מחרוזת פנינים', keys:['סנסיו','מחרוזת','פנינים'], base:9, tip:'להשקות כשהשכבה העליונה יבשה; הפנינים מתקמטות כשצריך מים.' },
+    { label:'אדניום', keys:['אדניום'], base:10, winterDry:true, tip:'בחורף משיר עלים ונח: כמעט בלי מים עד האביב.' },
+    { label:'יאדה', keys:['יאדה','קרסולה','Crassula'], base:10, tip:'להתייבש כמעט לגמרי בין השקיות. עלים מקומטים = צמא, עלים רכים ושקופים = עודף מים.' },
+    { label:'קלנכואה', keys:['קלנכואה'], base:9, tip:'כמו סוקולנט: להשקות כשהאדמה יבשה.' },
+    { label:'הויה', keys:['הויה','Hoya'], base:9, tip:'לתת לשכבה העליונה להתייבש. לא להזיז בזמן פריחה.' },
+    { label:'סוקולנט', keys:['סוקולנט'], base:10, tip:'להשקות רק כשהאדמה יבשה לגמרי.' },
+    { label:'קלתאה', keys:['קלתאה','Calathea'], base:4, tip:'אוהבת אדמה לחה קלות ולחות אוויר. קצוות חומים = מים קשים או אוויר יבש.' },
+    { label:'שלמת בית', keys:['שלמת בית','ספטיפילום','Peace'], base:4, tip:'מראה מתי היא צמאה: העלים צונחים, ומתאוששים שעה אחרי השקיה.' },
+    { label:'קרוטון', keys:['קרוטון'], base:4, tip:'אוהב לחות אחידה; ייבוש מלא גורם לנשירת עלים.' },
+    { label:'כורכום', keys:['כורכום'], base:5, winterDry:true, tip:'בחורף העלים נובלים והפקעת נחה: כמעט בלי מים עד האביב.' },
+    { label:'סינגוניום', keys:['סינגוניום'], base:5, tip:'לשמור על לחות קלה; לא לתת להתייבש לגמרי.' },
+    { label:'פלקטרנטוס', keys:['פלקטרנטוס'], base:5, tip:'צמא יחסית; עלים רכים וצונחים = צריך מים.' },
+    { label:'יסמין', keys:['יסמין'], base:5, tip:'לא לתת להתייבש לגמרי, במיוחד בזמן פריחה.' },
+    { label:'פוטוס', keys:['פוטוס','אפוקמה'], base:6, tip:'להשקות כשה-2–3 ס״מ העליונים יבשים למגע.' },
+    { label:'מונסטרה', keys:['מונסטרה'], base:6, tip:'להשקות כשהשכבה העליונה יבשה; עלים צהובים = לרוב עודף מים.' },
+    { label:'סחלב', keys:['סחלב','פלאנופסיס'], base:7, tip:'השריה של 10 דקות פעם בשבוע ולתת להתנקז היטב. שורשים כסופים = צמא, ירוקים = רווי.' },
+    { label:'זית', keys:['זית'], base:6, tip:'בעציץ מתייבש מהר; להשקות כשהשכבה העליונה יבשה.' }
+  ];
+  function speciesWaterRule(p){
+    if (p.type === 'tree') return null;
+    var hay = (p.species || '') + ' ' + (p.name || '');
+    for (var i=0;i<SPECIES_WATER.length;i++){
+      if (SPECIES_WATER[i].keys.some(function(k){ return hay.indexOf(k) !== -1; })) return SPECIES_WATER[i];
+    }
+    return null;
+  }
 
   function waterInterval(plant, atDate){
     if (plant.waterEvery > 0) return plant.waterEvery;
@@ -167,11 +208,19 @@
     var loc = getLocation(plant.locationId);
     var table = WATER[plant.type] || WATER.houseplant;
     var lvl = table[loc.lightLevel] ? loc.lightLevel : 'indoor';
-    return table[lvl][season(atDate)];
+    var sz = season(atDate);
+    var sr = speciesWaterRule(plant);
+    if (sr){
+      // same light/season ratios as the type's table, scaled to this species
+      var ratio = table[lvl][sz] / table.indoor.transition;
+      if (sr.winterDry && sz === 'winter') ratio *= 1.5;
+      return Math.max(2, Math.round(sr.base * ratio));
+    }
+    return table[lvl][sz];
   }
   function fertInterval(plant, atDate){
     var t = FERT[plant.type] || FERT.houseplant;
-    var n = t[season(atDate)] || t.transition;
+    var n = t[fertSeason(atDate)] || t.transition;
     // pots in low light grow slowly and need feeding less often
     if (plant.type !== 'tree' && isLowLight(getLocation(plant.locationId))) n = lowLightInterval(n);
     return n;
@@ -187,8 +236,8 @@
     var low = isLowLight(loc);
     var every = function(n){ return low ? lowLightInterval(n) : n; };
     var lines = [];
-    if (leafy) lines.push('<p><b>🌿 עלים ופורחים (' + leafy + '):</b> חצי מהמינון שעל אריזת הדשן לעציצים. ביוני–ספטמבר כל ' + every(14) + ' ימים, במרץ–מאי ובאוקטובר–נובמבר כל ' + every(21) + ' ימים.</p>');
-    if (succ) lines.push('<p><b>🌵 סוקולנטים וקקטוסים (' + succ + '):</b> רבע מהמינון שעל האריזה. ביוני–ספטמבר כל ' + every(30) + ' ימים, בעונות המעבר כל ' + every(45) + ' ימים.</p>');
+    if (leafy) lines.push('<p><b>🌿 עלים ופורחים (' + leafy + '):</b> חצי מהמינון שעל אריזת הדשן לעציצים. ביוני–ספטמבר כל ' + every(14) + ' ימים, במרץ–מאי כל ' + every(21) + ' ימים, ובאוקטובר–נובמבר כל ' + every(30) + ' ימים.</p>');
+    if (succ) lines.push('<p><b>🌵 סוקולנטים וקקטוסים (' + succ + '):</b> רבע מהמינון שעל האריזה. ביוני–ספטמבר כל ' + every(30) + ' ימים, במרץ–מאי כל ' + every(45) + ' ימים. מאוקטובר עד פברואר לא מדשנים.</p>');
     lines.push('<p>בדצמבר–פברואר לא מדשנים.' + (low ? ' באזור עם אור חלש הצמחים גדלים לאט, ולכן הרווחים כאן ארוכים פי 1.5.' : (loc.lightLevel === 'full' ? ' בשמש מלאה משקים הרבה והדשן נשטף, ולכן לא לדלג על מנות בקיץ.' : '')) + '</p>');
     if (leafy && succ) lines.push('<p>באזור מעורב, "דשנו ממתינים" מסמן רק את העציצים שהגיע תורם, כך שהסוקולנטים לא יקבלו דשן כל שבועיים.</p>');
     return '<details class="pp-prune pp-fertadv area-fert"><summary>🌱 המלצת דישון לאזור</summary>' + lines.join('') +
@@ -196,7 +245,7 @@
   }
   function fertOffNow(plant){
     var t = FERT[plant.type] || FERT.houseplant;
-    return t[season(today())] === null;
+    return t[fertSeason(today())] === null;
   }
   // { unknown } when never recorded; { off } for fertilizing out of season
 
@@ -660,7 +709,7 @@
   function careDue(p, kind){ return kind==='water' ? waterDue(p) : kind==='iron' ? ironDue(p) : fertDue(p); }
 
   /* ---------- state ---------- */
-  var APP_VERSION = '14';
+  var APP_VERSION = '15';
   var STATE_KEY = 'gardenHome_state_v1';
   var state = null;
   try { state = JSON.parse(localStorage.getItem(STATE_KEY) || 'null'); } catch(e){ state = null; }
@@ -1284,7 +1333,11 @@
       if (g.next) nextBits.push('גיזום ב' + MONTH_NAMES[g.next-1]);
       sub = todo.length ? todo.join(' · ') : (nextBits.length ? nextBits.join(' · ') : '✓ אין משימות כרגע');
     } else {
-      sub = waterText(w) + (w.rained ? ' · 🌧 ירד גשם' : '') + (p.waterAmount ? ' · ' + escapeHtml(p.waterAmount) : '') + (isDue(f) ? ' · לדשן' : '');
+      var needW = !w.na && (w.unknown || w.daysUntil <= 0);
+      var nextTxt = '';
+      if (!needW && p.lastWatered){ var nd = addDays(today(), w.daysUntil); nextTxt = 'לא היום · השקיה ביום ' + DAY_SHORT[nd.getDay()] + ' ' + nd.getDate() + '/' + (nd.getMonth()+1); }
+      sub = (needW ? waterText(w) : nextTxt || waterText(w)) + (w.rained ? ' · 🌧 ירד גשם' : '') +
+        ' · כל ' + waterInterval(p, today()) + ' ימים' + (p.waterAmount ? ' · ' + escapeHtml(p.waterAmount) : '') + (isDue(f) ? ' · 🌱 לדשן' : '');
     }
     var health = (p.healthCode && p.healthCode !== 'ok') ? ' <span class="pot-health" style="color:' + HEALTH_DOT_VAR[p.healthCode] + '">🩺</span>' : '';
     return '<button type="button" class="pot-row" data-plant="' + p.id + '">' +
@@ -1294,6 +1347,17 @@
       '<span class="pot-dot ' + dot + '" aria-hidden="true"></span>' +
       '<span class="pot-chev" aria-hidden="true">‹</span>' +
     '</button>';
+  }
+  // Pots in an area: what needs water today first, then the rest by next watering date.
+  function potGroupsHtml(list){
+    var need = [], later = [];
+    list.forEach(function(p){ var w = waterDue(p); (w.unknown || w.daysUntil <= 0 ? need : later).push(p); });
+    later.sort(function(a, b){ return waterDue(a).daysUntil - waterDue(b).daysUntil; });
+    need.sort(function(a, b){ var wa = waterDue(a), wb = waterDue(b); return (wa.unknown ? 1 : wa.daysUntil) - (wb.unknown ? 1 : wb.daysUntil); });
+    var out = '';
+    if (need.length) out += '<div class="pot-group-title due">💧 להשקות היום · ' + need.length + '</div><div class="pot-list">' + need.map(potRowHtml).join('') + '</div>';
+    if (later.length) out += '<div class="pot-group-title">✓ לא צריכים מים היום · ' + later.length + '</div><div class="pot-list">' + later.map(potRowHtml).join('') + '</div>';
+    return out;
   }
   function urgentFirst(list){
     function rank(p){
@@ -1315,15 +1379,15 @@
         '<div class="loc-group-title">' + (isTrees?'🌳 ':'') + escapeHtml(loc.name) + '<span class="loc-light-tag">' + tag + '</span>' +
           '<button type="button" class="area-edit-btn" id="editArea" data-loc="' + loc.id + '">✏️ עריכת האזור</button></div>' +
         '<div class="loc-bulk-actions">' +
-          (isTrees ? '' : '<button type="button" class="bulk-btn" ' + (list.length?'':'disabled') + ' data-bulk="water" data-loc="' + loc.id + '">💧 השקיתי את כל האזור (' + list.length + ')</button>') +
+          (isTrees ? '' : '<button type="button" class="bulk-btn" ' + (nw?'':'disabled') + ' data-bulk="water" data-loc="' + loc.id + '">💧 ' + (nw ? 'השקיתי את הממתינים (' + nw + ')' : 'אין מה להשקות היום') + '</button>') +
           '<button type="button" class="bulk-btn fert" ' + (nf?'':'disabled') + ' data-bulk="fert" data-loc="' + loc.id + '">🌱 דשנו ממתינים (' + nf + ')</button>' +
           (isTrees ? '<button type="button" class="bulk-btn journal" id="seasonJournalBtn">📔 יומן העונה</button>' : '') +
           (isTrees ? '<button type="button" class="bulk-btn iron" ' + (ni?'':'disabled') + ' data-bulk="iron" data-loc="' + loc.id + '">🔩 ברזל לממתינים (' + ni + ')</button>' : '') +
         '</div>' +
       '</div>' +
       (isTrees ? '' : areaFertAdviceHtml(loc)) +
-      (unknown ? '<div class="banner"><span>ל-' + unknown + ' מהצמחים כאן עוד לא סומנה השקיה. אחרי ההשקיה הבאה לחצו על <b>השקיתי את כל האזור</b>, ומשם הלוח יחשב לבד מתי להשקות שוב.</span></div>' : '') +
-      (list.length ? '<div class="pot-list">' + (isTrees ? urgentFirst(list) : list).map(potRowHtml).join('') + '</div>'
+      (unknown ? '<div class="banner"><span>ל-' + unknown + ' מהצמחים כאן עוד לא סומנה השקיה. בהשקיה הבאה: להשקות רק עציצים שהאדמה שלהם יבשה, ולסמן כל אחד בנפרד או את כולם יחד. מכאן כל צמח יקבל קצב משלו לפי הסוג שלו.</span></div>' : '') +
+      (list.length ? (isTrees ? '<div class="pot-list">' + urgentFirst(list).map(potRowHtml).join('') + '</div>' : potGroupsHtml(list))
         : '<div class="empty-note">אין עדיין צמחים באזור הזה. לחצו + כדי להוסיף.</div>');
   }
   function renderToday(){
@@ -1378,6 +1442,7 @@
         '<label class="pp-field">כל כמה ימים להשקות<input type="number" id="ppEvery" inputmode="numeric" min="1" max="60" value="' + (p.waterEvery || '') + '" placeholder="' + autoIntervalText(p) + '"></label>' +
       '</div>') +
       (isTree ? treeSeasonHtml(p) : '') +
+      (!isTree && speciesWaterRule(p) ? '<div class="pp-health">💧 <b>' + escapeHtml(speciesWaterRule(p).label) + ':</b> ' + escapeHtml(speciesWaterRule(p).tip) + '</div>' : '') +
       (p.careNote ? '<div class="pp-health">🔍 ' + escapeHtml(p.careNote) + '</div>' : '') +
       '<label class="pp-field" style="margin-bottom:12px;">הערות<textarea id="ppNotes" rows="2" class="pp-notes" placeholder="מזיקים, פריחה, העברת עציץ…">' + escapeHtml(p.notes || '') + '</textarea></label>' +
       health +
@@ -2572,7 +2637,7 @@
     var bulkBtn = e.target.closest('button[data-bulk]');
     if (bulkBtn && !bulkBtn.disabled){
       var kind = bulkBtn.dataset.bulk;
-      var list = kind === 'water' ? plantsInArea(bulkBtn.dataset.loc) : bulkTargets(bulkBtn.dataset.loc, kind);
+      var list = bulkTargets(bulkBtn.dataset.loc, kind);
       markPlants(list, kind, null, (kind==='water' ? 'סומנו כהושקו: ' : kind==='iron' ? 'סומן ברזל ל-' : 'סומנו כדושנו: ') + list.length + (kind==='iron' ? ' עצים' : ' צמחים'));
     }
   });
