@@ -709,7 +709,7 @@
   function careDue(p, kind){ return kind==='water' ? waterDue(p) : kind==='iron' ? ironDue(p) : fertDue(p); }
 
   /* ---------- state ---------- */
-  var APP_VERSION = '16';
+  var APP_VERSION = '17';
   var STATE_KEY = 'gardenHome_state_v1';
   var state = null;
   try { state = JSON.parse(localStorage.getItem(STATE_KEY) || 'null'); } catch(e){ state = null; }
@@ -1312,42 +1312,67 @@
       status +
     '</button>';
   }
-  // The coming 7 days at a glance: what's due each day, plus rain, heat and frost from the forecast.
+  // Gardening days: Tuesday and Friday. Everything due before the next gardening day
+  // is done on the one before it, split into garden pots, house pots and trees.
+  var WORK_DAYS = [2, 5]; // Date.getDay(): 2 = Tuesday, 5 = Friday
+  var WORK_DAY_NAMES = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
+  function nextWorkDays(n){
+    var out = [], d = today(), guard = 0;
+    while (out.length < n && guard++ < 30){ if (WORK_DAYS.indexOf(d.getDay()) !== -1) out.push(d); d = addDays(d, 1); }
+    return out;
+  }
+  function isHouseArea(loc){ return loc && loc.lightLevel === 'indoor'; }
   function weekSummaryHtml(){
-    var t = today(), end = addDays(t, 6), plan = calendarPlan(t, end);
-    var unknown = state.plants.filter(function(p){ return p.type !== 'tree' && !p.lastWatered; }).map(function(p){ return p.id; });
-    var any = false;
-    var rows = [];
-    for (var i=0; i<7; i++){
-      var d = addDays(t, i), ds = fmt(d);
-      var set = plan[ds] || { water:[], fert:[], iron:[], prune:[] };
-      var water = set.water.slice();
-      if (i === 0) unknown.forEach(function(id){ if (water.indexOf(id) === -1) water.push(id); });
-      var bits = [], areaTxt = '';
-      if (water.length){
-        var areas = areasOf(water).map(function(g){ return g.loc.name; });
-        bits.push('<span class="wk-chip water">💧 ' + water.length + '</span>');
-        areaTxt = areas.slice(0, 2).join(', ') + (areas.length > 2 ? ' ועוד ' + (areas.length - 2) : '');
-      }
-      var fp = potIds(set.fert).length, ft = treeIds(set.fert).length;
-      if (fp || ft) bits.push('<span class="wk-chip fert">🌱 ' + (fp + ft) + '</span>');
-      if (set.iron.length) bits.push('<span class="wk-chip iron">🔩 ' + set.iron.length + '</span>');
-      if (set.prune.length) bits.push('<span class="wk-chip prune">✂️ ' + set.prune.length + '</span>');
-      if (bits.length) any = true;
-      var wx = weatherDay(ds), wxIc = '';
-      if (wx){
-        if (wx.tmin != null && wx.tmin <= FROST_C) wxIc += '❄️';
-        if (wx.tmax != null && wx.tmax >= HEAT_C) wxIc += '🔥';
-        if (wx.rain != null && wx.rain >= RAIN_WATERS_MM) wxIc += '🌧';
-      }
-      var label = i === 0 ? 'היום' : i === 1 ? 'מחר' : 'יום ' + DAY_SHORT[d.getDay()] + ' ' + d.getDate() + '/' + (d.getMonth()+1);
-      rows.push('<button type="button" class="wk-row' + (i === 0 ? ' today' : '') + (bits.length ? '' : ' free') + '" data-week-day="' + ds + '">' +
-        '<span class="wk-day">' + label + (wxIc ? ' <span class="wk-wx">' + wxIc + '</span>' : '') + '</span>' +
-        '<span class="wk-what">' + (bits.length ? '<span class="wk-chips">' + bits.join('') + '</span>' + (areaTxt ? '<span class="wk-areas">' + escapeHtml(areaTxt) + '</span>' : '') : '<span class="wk-free">יום חופשי</span>') + '</span>' +
-        '<span class="pot-chev" aria-hidden="true">‹</span></button>');
+    var days = nextWorkDays(3), t = today();
+    var buckets = [0, 1].map(function(){ return { water:[], fert:[], iron:[], prune:[] }; });
+    function put(b, kind, id){ if (buckets[b][kind].indexOf(id) === -1) buckets[b][kind].push(id); }
+    var plan = calendarPlan(t, addDays(days[2], -1));
+    Object.keys(plan).forEach(function(ds){
+      var b = parse(ds) < days[1] ? 0 : 1;
+      ['water','fert','iron','prune'].forEach(function(k){ plan[ds][k].forEach(function(id){ put(b, k, id); }); });
+    });
+    state.plants.forEach(function(p){ if (p.type !== 'tree' && !p.lastWatered) put(0, 'water', p.id); });
+    function potLine(ic, label, water, fert){
+      if (!water.length && !fert.length) return '';
+      var chips = (water.length ? '<span class="wk-chip water">💧 ' + water.length + ' להשקות</span>' : '') +
+        (fert.length ? '<span class="wk-chip fert">🌱 ' + fert.length + ' לדשן</span>' : '');
+      var groups = areasOf(water.concat(fert.filter(function(id){ return water.indexOf(id) === -1; })));
+      var list = groups.map(function(g){
+        return '<div class="wk-area"><button type="button" class="wk-area-btn" data-open-area="' + g.loc.id + '">' + escapeHtml(g.loc.name) + ' ‹</button>' +
+          '<div class="wk-plants">' + g.ids.map(function(id){
+            var p = findPlant(id);
+            return '<div class="wk-p"><span>' + escapeHtml(p.name) + '</span><span class="wk-p-ic">' + (water.indexOf(id) !== -1 ? '💧' : '') + (fert.indexOf(id) !== -1 ? '🌱' : '') + '</span></div>';
+          }).join('') + '</div></div>';
+      }).join('');
+      return '<details class="wk-group"><summary><span class="wk-glabel">' + ic + ' ' + label + '</span><span class="wk-chips">' + chips + '</span></summary>' + list + '</details>';
     }
-    return '<div class="week-box"><div class="wk-title">השבוע בגינה</div>' + rows.join('') +
-      '<div class="wk-legend">💧 עציצים להשקות · 🌱 דישון · 🔩 ברזל · ✂️ גיזום · 🌧 גשם · 🔥 חום · ❄️ קרה. לחיצה על יום מציגה את הפירוט.</div></div>';
+    function card(i){
+      var d = days[i], ds = fmt(d), set = buckets[i];
+      var isPot = function(id){ var p = findPlant(id); return p && p.type !== 'tree'; };
+      var house = function(id){ var p = findPlant(id); return p && isHouseArea(getLocation(p.locationId)); };
+      var gW = set.water.filter(function(id){ return isPot(id) && !house(id); }), hW = set.water.filter(function(id){ return isPot(id) && house(id); });
+      var gF = set.fert.filter(function(id){ return isPot(id) && !house(id); }), hF = set.fert.filter(function(id){ return isPot(id) && house(id); });
+      var tF = treeIds(set.fert), tI = set.iron, tP = set.prune;
+      var treeChips = (tF.length ? '<span class="wk-chip fert">🌱 ' + tF.length + ' לדשן</span>' : '') +
+        (tI.length ? '<span class="wk-chip iron">🔩 ' + tI.length + ' ברזל</span>' : '') +
+        (tP.length ? '<span class="wk-chip prune">✂️ ' + tP.length + ' לגזום</span>' : '');
+      var treeIdsAll = []; tF.concat(tI, tP).forEach(function(id){ if (treeIdsAll.indexOf(id) === -1) treeIdsAll.push(id); });
+      var treeLine = treeChips ? '<details class="wk-group"><summary><span class="wk-glabel">🌳 עצים</span><span class="wk-chips">' + treeChips + '</span></summary>' +
+        '<div class="wk-plants">' + treeIdsAll.map(function(id){ var p = findPlant(id); return '<div class="wk-p"><span>' + escapeHtml(p.name) + '</span><span class="wk-p-ic">' + (tF.indexOf(id) !== -1 ? '🌱' : '') + (tI.indexOf(id) !== -1 ? '🔩' : '') + (tP.indexOf(id) !== -1 ? '✂️' : '') + '</span></div>'; }).join('') + '</div></details>' : '';
+      var body = potLine('🪴', 'עציצי גינה', gW, gF) + potLine('🏠', 'עציצי בית', hW, hF) + treeLine;
+      var wx = weatherDay(ds), wxTxt = '';
+      if (wx){
+        if (wx.tmin != null && wx.tmin <= FROST_C) wxTxt += ' ❄️ קרה';
+        if (wx.tmax != null && wx.tmax >= HEAT_C) wxTxt += ' 🔥 חם';
+        if (wx.rain != null && wx.rain >= RAIN_WATERS_MM) wxTxt += ' 🌧 גשם';
+      }
+      var when = diffDays(d, t) === 0 ? 'היום' : diffDays(d, t) === 1 ? 'מחר' : 'בעוד ' + diffDays(d, t) + ' ימים';
+      return '<div class="wd-card' + (i === 0 ? ' next' : '') + '"><div class="wd-head"><span class="wd-day">יום ' + WORK_DAY_NAMES[d.getDay()] + ' ' + d.getDate() + '/' + (d.getMonth()+1) + '</span>' +
+        '<span class="wd-when">' + when + (wxTxt ? ' ·' + wxTxt : '') + '</span></div>' +
+        (body || '<div class="wk-free">✓ אין משימות ליום הזה</div>') + '</div>';
+    }
+    return '<div class="week-box"><div class="wk-title">ימי העבודה בגינה · שלישי ושישי</div>' + card(0) + card(1) +
+      '<div class="wk-legend">כל מה שמגיע לפני יום העבודה הבא נכנס ליום העבודה שלפניו. לחיצה על קבוצה פותחת את רשימת הצמחים.</div></div>';
   }
   function renderSections(){
     var trees = state.locations.filter(function(l){ return l.kind==='trees'; });
