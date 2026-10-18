@@ -709,7 +709,7 @@
   function careDue(p, kind){ return kind==='water' ? waterDue(p) : kind==='iron' ? ironDue(p) : fertDue(p); }
 
   /* ---------- state ---------- */
-  var APP_VERSION = '17';
+  var APP_VERSION = '18';
   var STATE_KEY = 'gardenHome_state_v1';
   var state = null;
   try { state = JSON.parse(localStorage.getItem(STATE_KEY) || 'null'); } catch(e){ state = null; }
@@ -1312,66 +1312,95 @@
       status +
     '</button>';
   }
-  // Gardening days: Tuesday and Friday. Everything due before the next gardening day
-  // is done on the one before it, split into garden pots, house pots and trees.
-  var WORK_DAYS = [2, 5]; // Date.getDay(): 2 = Tuesday, 5 = Friday
+  // Work days per group: house pots on Tuesday and Friday, garden pots and trees on Friday and Saturday.
+  // Anything due before a group's next work day is done on that group's work day before it.
+  var HOUSE_DAYS = [2, 5];   // Date.getDay(): 2 = Tuesday, 5 = Friday
+  var GARDEN_DAYS = [5, 6];  // 5 = Friday, 6 = Saturday
   var WORK_DAY_NAMES = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
-  function nextWorkDays(n){
+  function nextDaysOf(set, n){
     var out = [], d = today(), guard = 0;
-    while (out.length < n && guard++ < 30){ if (WORK_DAYS.indexOf(d.getDay()) !== -1) out.push(d); d = addDays(d, 1); }
+    while (out.length < n && guard++ < 30){ if (set.indexOf(d.getDay()) !== -1) out.push(d); d = addDays(d, 1); }
     return out;
   }
   function isHouseArea(loc){ return loc && loc.lightLevel === 'indoor'; }
   function weekSummaryHtml(){
-    var days = nextWorkDays(3), t = today();
-    var buckets = [0, 1].map(function(){ return { water:[], fert:[], iron:[], prune:[] }; });
-    function put(b, kind, id){ if (buckets[b][kind].indexOf(id) === -1) buckets[b][kind].push(id); }
-    var plan = calendarPlan(t, addDays(days[2], -1));
-    Object.keys(plan).forEach(function(ds){
-      var b = parse(ds) < days[1] ? 0 : 1;
-      ['water','fert','iron','prune'].forEach(function(k){ plan[ds][k].forEach(function(id){ put(b, k, id); }); });
-    });
-    state.plants.forEach(function(p){ if (p.type !== 'tree' && !p.lastWatered) put(0, 'water', p.id); });
-    function potLine(ic, label, water, fert){
-      if (!water.length && !fert.length) return '';
-      var chips = (water.length ? '<span class="wk-chip water">💧 ' + water.length + ' להשקות</span>' : '') +
-        (fert.length ? '<span class="wk-chip fert">🌱 ' + fert.length + ' לדשן</span>' : '');
-      var groups = areasOf(water.concat(fert.filter(function(id){ return water.indexOf(id) === -1; })));
-      var list = groups.map(function(g){
-        return '<div class="wk-area"><button type="button" class="wk-area-btn" data-open-area="' + g.loc.id + '">' + escapeHtml(g.loc.name) + ' ‹</button>' +
-          '<div class="wk-plants">' + g.ids.map(function(id){
-            var p = findPlant(id);
-            return '<div class="wk-p"><span>' + escapeHtml(p.name) + '</span><span class="wk-p-ic">' + (water.indexOf(id) !== -1 ? '💧' : '') + (fert.indexOf(id) !== -1 ? '🌱' : '') + '</span></div>';
-          }).join('') + '</div></div>';
-      }).join('');
-      return '<details class="wk-group"><summary><span class="wk-glabel">' + ic + ' ' + label + '</span><span class="wk-chips">' + chips + '</span></summary>' + list + '</details>';
+    var t = today();
+    var hDays = nextDaysOf(HOUSE_DAYS, 3), gDays = nextDaysOf(GARDEN_DAYS, 3);
+    var to = addDays(hDays[2] > gDays[2] ? hDays[2] : gDays[2], -1);
+    var plan = calendarPlan(t, to);
+    var unknown = state.plants.filter(function(p){ return p.type !== 'tree' && !p.lastWatered; });
+    function groupOf(p){ return p.type === 'tree' ? 'tree' : (isHouseArea(getLocation(p.locationId)) ? 'house' : 'garden'); }
+    // the group's work day that a due date falls to: the last one on or before it, else the first
+    function slot(days, d){ var k = 0; for (var i=0;i<days.length;i++) if (days[i] <= d) k = i; return days[k]; }
+    var byDay = {}; // ds -> { house:{water,fert}, garden:{water,fert}, tree:{fert,iron,prune} }
+    function put(day, grp, kind, id){
+      var ds = fmt(day), e = byDay[ds] || (byDay[ds] = { d:day, house:{ water:[], fert:[] }, garden:{ water:[], fert:[] }, tree:{ fert:[], iron:[], prune:[] } });
+      var list = e[grp][kind]; if (list && list.indexOf(id) === -1) list.push(id);
     }
-    function card(i){
-      var d = days[i], ds = fmt(d), set = buckets[i];
-      var isPot = function(id){ var p = findPlant(id); return p && p.type !== 'tree'; };
-      var house = function(id){ var p = findPlant(id); return p && isHouseArea(getLocation(p.locationId)); };
-      var gW = set.water.filter(function(id){ return isPot(id) && !house(id); }), hW = set.water.filter(function(id){ return isPot(id) && house(id); });
-      var gF = set.fert.filter(function(id){ return isPot(id) && !house(id); }), hF = set.fert.filter(function(id){ return isPot(id) && house(id); });
-      var tF = treeIds(set.fert), tI = set.iron, tP = set.prune;
-      var treeChips = (tF.length ? '<span class="wk-chip fert">🌱 ' + tF.length + ' לדשן</span>' : '') +
-        (tI.length ? '<span class="wk-chip iron">🔩 ' + tI.length + ' ברזל</span>' : '') +
-        (tP.length ? '<span class="wk-chip prune">✂️ ' + tP.length + ' לגזום</span>' : '');
-      var treeIdsAll = []; tF.concat(tI, tP).forEach(function(id){ if (treeIdsAll.indexOf(id) === -1) treeIdsAll.push(id); });
-      var treeLine = treeChips ? '<details class="wk-group"><summary><span class="wk-glabel">🌳 עצים</span><span class="wk-chips">' + treeChips + '</span></summary>' +
-        '<div class="wk-plants">' + treeIdsAll.map(function(id){ var p = findPlant(id); return '<div class="wk-p"><span>' + escapeHtml(p.name) + '</span><span class="wk-p-ic">' + (tF.indexOf(id) !== -1 ? '🌱' : '') + (tI.indexOf(id) !== -1 ? '🔩' : '') + (tP.indexOf(id) !== -1 ? '✂️' : '') + '</span></div>'; }).join('') + '</div></details>' : '';
-      var body = potLine('🪴', 'עציצי גינה', gW, gF) + potLine('🏠', 'עציצי בית', hW, hF) + treeLine;
+    var late = []; // garden pots that can't wait for the next garden day
+    Object.keys(plan).forEach(function(ds){
+      var d = parse(ds);
+      ['water','fert','iron','prune'].forEach(function(k){
+        plan[ds][k].forEach(function(id){
+          var p = findPlant(id); if (!p) return;
+          var g = groupOf(p), days = g === 'house' ? hDays : gDays;
+          if (d >= days[2]) return;
+          if (g === 'garden' && k === 'water' && diffDays(gDays[0], d) >= 2 && late.indexOf(id) === -1) late.push(id);
+          put(slot(days, d), g, k, id);
+        });
+      });
+    });
+    unknown.forEach(function(p){ var g = groupOf(p); put((g === 'house' ? hDays : gDays)[0], g, 'water', p.id); });
+    function plantRows(ids, marks){
+      return areasOf(ids).map(function(g){
+        return '<div class="wk-area"><button type="button" class="wk-area-btn" data-open-area="' + g.loc.id + '">' + escapeHtml(g.loc.name) + ' ‹</button>' +
+          '<div class="wk-plants">' + g.ids.map(function(id){ return '<div class="wk-p"><span>' + escapeHtml(findPlant(id).name) + '</span><span class="wk-p-ic">' + marks(id) + '</span></div>'; }).join('') + '</div></div>';
+      }).join('');
+    }
+    function potLine(ic, label, set){
+      if (!set.water.length && !set.fert.length) return '';
+      var chips = (set.water.length ? '<span class="wk-chip water">💧 ' + set.water.length + ' להשקות</span>' : '') +
+        (set.fert.length ? '<span class="wk-chip fert">🌱 ' + set.fert.length + ' לדשן</span>' : '');
+      var all = set.water.concat(set.fert.filter(function(id){ return set.water.indexOf(id) === -1; }));
+      return '<details class="wk-group"><summary><span class="wk-glabel">' + ic + ' ' + label + '</span><span class="wk-chips">' + chips + '</span></summary>' +
+        plantRows(all, function(id){ return (set.water.indexOf(id) !== -1 ? '💧' : '') + (set.fert.indexOf(id) !== -1 ? '🌱' : ''); }) + '</details>';
+    }
+    function treeLine(set){
+      var chips = (set.fert.length ? '<span class="wk-chip fert">🌱 ' + set.fert.length + ' לדשן</span>' : '') +
+        (set.iron.length ? '<span class="wk-chip iron">🔩 ' + set.iron.length + ' ברזל</span>' : '') +
+        (set.prune.length ? '<span class="wk-chip prune">✂️ ' + set.prune.length + ' לגזום</span>' : '');
+      if (!chips) return '';
+      var ids = []; set.fert.concat(set.iron, set.prune).forEach(function(id){ if (ids.indexOf(id) === -1) ids.push(id); });
+      return '<details class="wk-group"><summary><span class="wk-glabel">🌳 עצים</span><span class="wk-chips">' + chips + '</span></summary><div class="wk-plants">' +
+        ids.map(function(id){ return '<div class="wk-p"><span>' + escapeHtml(findPlant(id).name) + '</span><span class="wk-p-ic">' + (set.fert.indexOf(id) !== -1 ? '🌱' : '') + (set.iron.indexOf(id) !== -1 ? '🔩' : '') + (set.prune.indexOf(id) !== -1 ? '✂️' : '') + '</span></div>'; }).join('') + '</div></details>';
+    }
+    // the next three work days of either group, in order
+    var shown = [];
+    hDays.concat(gDays).forEach(function(d){ if (!shown.some(function(x){ return +x === +d; })) shown.push(d); });
+    shown.sort(function(a, b){ return a - b; });
+    shown = shown.slice(0, 3);
+    var cards = shown.map(function(d, i){
+      var ds = fmt(d), e = byDay[ds] || { house:{ water:[], fert:[] }, garden:{ water:[], fert:[] }, tree:{ fert:[], iron:[], prune:[] } };
+      var isH = HOUSE_DAYS.indexOf(d.getDay()) !== -1, isG = GARDEN_DAYS.indexOf(d.getDay()) !== -1;
+      var body = (isG ? potLine('🪴', 'עציצי חוץ', e.garden) : '') + (isH ? potLine('🏠', 'עציצי בית', e.house) : '') + (isG ? treeLine(e.tree) : '');
+      if (i === 0 && !isG && late.length){
+        body = '<details class="wk-group wk-late"><summary><span class="wk-glabel">⚠️ עציצי חוץ שלא יחכו לשישי</span><span class="wk-chips"><span class="wk-chip water">💧 ' + late.length + '</span></span></summary>' +
+          '<p class="wk-note">יתייבשו לפני יום העבודה בחוץ. כדאי להשקות אותם היום, ובקיץ להעביר אותם למקום מוצל יותר.</p>' +
+          plantRows(late, function(){ return '💧'; }) + '</details>' + body;
+      }
       var wx = weatherDay(ds), wxTxt = '';
       if (wx){
         if (wx.tmin != null && wx.tmin <= FROST_C) wxTxt += ' ❄️ קרה';
         if (wx.tmax != null && wx.tmax >= HEAT_C) wxTxt += ' 🔥 חם';
         if (wx.rain != null && wx.rain >= RAIN_WATERS_MM) wxTxt += ' 🌧 גשם';
       }
-      var when = diffDays(d, t) === 0 ? 'היום' : diffDays(d, t) === 1 ? 'מחר' : 'בעוד ' + diffDays(d, t) + ' ימים';
-      return '<div class="wd-card' + (i === 0 ? ' next' : '') + '"><div class="wd-head"><span class="wd-day">יום ' + WORK_DAY_NAMES[d.getDay()] + ' ' + d.getDate() + '/' + (d.getMonth()+1) + '</span>' +
+      var n = diffDays(d, t), when = n === 0 ? 'היום' : n === 1 ? 'מחר' : 'בעוד ' + n + ' ימים';
+      var tag = isH && isG ? 'בית + חוץ' : isH ? 'בית' : 'חוץ';
+      return '<div class="wd-card' + (i === 0 ? ' next' : '') + '"><div class="wd-head"><span class="wd-day">יום ' + WORK_DAY_NAMES[d.getDay()] + ' ' + d.getDate() + '/' + (d.getMonth()+1) + ' <span class="wd-tag">' + tag + '</span></span>' +
         '<span class="wd-when">' + when + (wxTxt ? ' ·' + wxTxt : '') + '</span></div>' +
         (body || '<div class="wk-free">✓ אין משימות ליום הזה</div>') + '</div>';
-    }
-    return '<div class="week-box"><div class="wk-title">ימי העבודה בגינה · שלישי ושישי</div>' + card(0) + card(1) +
+    });
+    return '<div class="week-box"><div class="wk-title">ימי העבודה · בית: שלישי ושישי · חוץ: שישי ושבת</div>' + cards.join('') +
       '<div class="wk-legend">כל מה שמגיע לפני יום העבודה הבא נכנס ליום העבודה שלפניו. לחיצה על קבוצה פותחת את רשימת הצמחים.</div></div>';
   }
   function renderSections(){
