@@ -1,6 +1,6 @@
 // גינת הבית — keeps the app shell available offline. Claude API calls always go to the network.
-const CACHE = 'garden-home-v15';
-const SHELL = ['./', 'index.html', 'app.js?v=6', 'anthropic-sdk.js', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png'];
+const CACHE = 'garden-home-v16';
+const SHELL = ['./', 'index.html', 'app.js?v=7', 'anthropic-sdk.js', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));

@@ -709,7 +709,7 @@
   function careDue(p, kind){ return kind==='water' ? waterDue(p) : kind==='iron' ? ironDue(p) : fertDue(p); }
 
   /* ---------- state ---------- */
-  var APP_VERSION = '15';
+  var APP_VERSION = '16';
   var STATE_KEY = 'gardenHome_state_v1';
   var state = null;
   try { state = JSON.parse(localStorage.getItem(STATE_KEY) || 'null'); } catch(e){ state = null; }
@@ -1312,9 +1312,46 @@
       status +
     '</button>';
   }
+  // The coming 7 days at a glance: what's due each day, plus rain, heat and frost from the forecast.
+  function weekSummaryHtml(){
+    var t = today(), end = addDays(t, 6), plan = calendarPlan(t, end);
+    var unknown = state.plants.filter(function(p){ return p.type !== 'tree' && !p.lastWatered; }).map(function(p){ return p.id; });
+    var any = false;
+    var rows = [];
+    for (var i=0; i<7; i++){
+      var d = addDays(t, i), ds = fmt(d);
+      var set = plan[ds] || { water:[], fert:[], iron:[], prune:[] };
+      var water = set.water.slice();
+      if (i === 0) unknown.forEach(function(id){ if (water.indexOf(id) === -1) water.push(id); });
+      var bits = [], areaTxt = '';
+      if (water.length){
+        var areas = areasOf(water).map(function(g){ return g.loc.name; });
+        bits.push('<span class="wk-chip water">💧 ' + water.length + '</span>');
+        areaTxt = areas.slice(0, 2).join(', ') + (areas.length > 2 ? ' ועוד ' + (areas.length - 2) : '');
+      }
+      var fp = potIds(set.fert).length, ft = treeIds(set.fert).length;
+      if (fp || ft) bits.push('<span class="wk-chip fert">🌱 ' + (fp + ft) + '</span>');
+      if (set.iron.length) bits.push('<span class="wk-chip iron">🔩 ' + set.iron.length + '</span>');
+      if (set.prune.length) bits.push('<span class="wk-chip prune">✂️ ' + set.prune.length + '</span>');
+      if (bits.length) any = true;
+      var wx = weatherDay(ds), wxIc = '';
+      if (wx){
+        if (wx.tmin != null && wx.tmin <= FROST_C) wxIc += '❄️';
+        if (wx.tmax != null && wx.tmax >= HEAT_C) wxIc += '🔥';
+        if (wx.rain != null && wx.rain >= RAIN_WATERS_MM) wxIc += '🌧';
+      }
+      var label = i === 0 ? 'היום' : i === 1 ? 'מחר' : 'יום ' + DAY_SHORT[d.getDay()] + ' ' + d.getDate() + '/' + (d.getMonth()+1);
+      rows.push('<button type="button" class="wk-row' + (i === 0 ? ' today' : '') + (bits.length ? '' : ' free') + '" data-week-day="' + ds + '">' +
+        '<span class="wk-day">' + label + (wxIc ? ' <span class="wk-wx">' + wxIc + '</span>' : '') + '</span>' +
+        '<span class="wk-what">' + (bits.length ? '<span class="wk-chips">' + bits.join('') + '</span>' + (areaTxt ? '<span class="wk-areas">' + escapeHtml(areaTxt) + '</span>' : '') : '<span class="wk-free">יום חופשי</span>') + '</span>' +
+        '<span class="pot-chev" aria-hidden="true">‹</span></button>');
+    }
+    return '<div class="week-box"><div class="wk-title">השבוע בגינה</div>' + rows.join('') +
+      '<div class="wk-legend">💧 עציצים להשקות · 🌱 דישון · 🔩 ברזל · ✂️ גיזום · 🌧 גשם · 🔥 חום · ❄️ קרה. לחיצה על יום מציגה את הפירוט.</div></div>';
+  }
   function renderSections(){
     var trees = state.locations.filter(function(l){ return l.kind==='trees'; });
-    return todayStripHtml() +
+    return todayStripHtml() + weekSummaryHtml() +
       '<div class="sec-grid">' + trees.map(sectionTileHtml).join('') + potLocations().map(sectionTileHtml).join('') + '</div>' +
       '<p class="app-version">גרסה ' + APP_VERSION + '</p>';
   }
@@ -1685,7 +1722,7 @@
       }
       if (p.type !== 'tree'){
         var fertTable = FERT[p.type] || FERT.houseplant;
-        projectDates(p.lastFertilized, function(d){ return fertInterval(p, d); }, function(d){ return fertTable[season(d)] === null; }, from, to)
+        projectDates(p.lastFertilized, function(d){ return fertInterval(p, d); }, function(d){ return fertTable[fertSeason(d)] === null; }, from, to)
           .forEach(function(d){ add(d, 'fert', p.id); });
         return;
       }
@@ -2624,6 +2661,12 @@
     if (e.target.closest('#seasonJournalBtn')){ seasonYear = null; openSeasonJournal(); return; }
     if (e.target.closest('#backupNudge')){ exportBackup(); return; }
     if (e.target.closest('#todayStrip')){ state.calendarOffset = 0; renderCalendar(); openCalendarDay(fmt(today())); return; }
+    var wkDay = e.target.closest('[data-week-day]');
+    if (wkDay){
+      var wd = parse(wkDay.dataset.weekDay), t0 = today();
+      state.calendarOffset = (wd.getFullYear() - t0.getFullYear()) * 12 + (wd.getMonth() - t0.getMonth());
+      renderCalendar(); openCalendarDay(wkDay.dataset.weekDay); return;
+    }
     if (e.target.id === 'settingsBtn'){ openSettingsSheet(); return; }
     if (e.target.id === 'exportBtn'){ exportBackup(); return; }
     if (e.target.id === 'importBtn'){ document.getElementById('importInput').click(); return; }
