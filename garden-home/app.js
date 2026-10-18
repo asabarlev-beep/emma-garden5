@@ -703,7 +703,7 @@
   function careDue(p, kind){ return kind==='water' ? waterDue(p) : kind==='iron' ? ironDue(p) : fertDue(p); }
 
   /* ---------- state ---------- */
-  var APP_VERSION = '19';
+  var APP_VERSION = '20';
   var STATE_KEY = 'gardenHome_state_v1';
   var state = null;
   try { state = JSON.parse(localStorage.getItem(STATE_KEY) || 'null'); } catch(e){ state = null; }
@@ -1753,9 +1753,22 @@
     }
     return out.filter(function(d){ return d >= from && d <= to; });
   }
+  // A due date moves to its group's work day: the last one on or before it (from today on),
+  // otherwise the next one. House pots: Tue/Fri; garden pots and trees: Fri/Sat.
+  function workSlot(p, d){
+    var set = (p.type !== 'tree' && isHouseArea(getLocation(p.locationId))) ? HOUSE_DAYS : GARDEN_DAYS;
+    var t = today(), c, k;
+    for (k=0; k<7; k++){ c = addDays(d, -k); if (c < t) break; if (set.indexOf(c.getDay()) !== -1) return c; }
+    for (k=1; k<8; k++){ c = addDays(d, k); if (set.indexOf(c.getDay()) !== -1) return c; }
+    return d;
+  }
   function calendarPlan(from, to){
     var plan = {};
+    var shownFrom = from;
     function add(d, kind, id){
+      var p = findPlant(id);
+      if (p) d = workSlot(p, d);
+      if (d < shownFrom || d > to) return;
       var ds = fmt(d);
       var day = plan[ds] || (plan[ds] = { water:[], fert:[], iron:[], prune:[] });
       if (day[kind].indexOf(id) === -1) day[kind].push(id);
@@ -1763,6 +1776,11 @@
     var t = today();
     if (to < t) return plan;
     if (from < t) from = t;
+    shownFrom = from;
+    // look a week past the end: those due dates may fall back onto a work day inside the range
+    var rawTo = addDays(to, 7);
+    var rawFrom = from;
+    from = rawFrom; var toOrig = to; to = rawTo;
     state.plants.forEach(function(p){
       if (p.type !== 'tree'){
         projectDates(effectiveLastWatered(p), function(d){ return waterInterval(p, d); }, function(){ return false; }, from, to)
@@ -1782,6 +1800,8 @@
       monthReminderDates(rule.months, from, to, isDue(pruneDue(p)), true)
         .forEach(function(d){ add(d, 'prune', p.id); });
     });
+    to = toOrig;
+    Object.keys(plan).forEach(function(ds){ if (parse(ds) > toOrig) delete plan[ds]; });
     return plan;
   }
   function renderCalendar(){
@@ -1835,7 +1855,7 @@
         '<div class="cal-range">' + MONTH_NAMES[month] + ' ' + year + '</div>' +
         '<button type="button" data-cnav="next" aria-label="חודש הבא">›</button>' +
       '</div>' +
-      '<div class="cal-legend">💧 אזורי עציצים להשקות · 🌱 דישון (אזורי עציצים ועצים) · 🔩 ברזל · ✂️ גיזום. מהיום והלאה: התראות על מה שצריך לעשות. ימים שעברו: מה שבוצע, ו-⚠ לצמחים שהתאחרה להם השקיה. לחיצה על יום מציגה את הצמחים.</div>';
+      '<div class="cal-legend">מהיום והלאה המשימות מרוכזות בימי העבודה: עציצי בית בשלישי ושישי, עציצי חוץ ועצים בשישי ושבת. 💧 אזורים להשקות · 🌱 דישון · 🔩 ברזל · ✂️ גיזום. ימים שעברו: מה שבוצע, ו-⚠ לצמחים שהתאחרה להם השקיה. לחיצה על יום מציגה את הצמחים.</div>';
     var grid = '<div class="cal-grid">' + DAY_LETTERS.map(function(l){ return '<div class="cal-dow">'+l+'</div>'; }).join('');
     for (var i=0;i<firstDow;i++) grid += '<div class="cal-cell empty"></div>';
     for (var day=1; day<=numDays; day++){
