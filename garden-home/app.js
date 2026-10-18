@@ -732,7 +732,7 @@
   function careDue(p, kind){ return kind==='water' ? waterDue(p) : kind==='iron' ? ironDue(p) : fertDue(p); }
 
   /* ---------- state ---------- */
-  var APP_VERSION = '22';
+  var APP_VERSION = '23';
   var STATE_KEY = 'gardenHome_state_v1';
   var state = null;
   try { state = JSON.parse(localStorage.getItem(STATE_KEY) || 'null'); } catch(e){ state = null; }
@@ -740,6 +740,45 @@
   if (!state){
     try { state = JSON.parse(document.getElementById('state-data').textContent); } catch(e){ state = {plants:[], locations:[], log:[]}; }
   }
+  // Data comes back from backups, so never trust it inside HTML: ids, dates and numbers that end up in
+  // attributes must have a safe shape. Anything else is replaced, so a crafted file can't inject markup.
+  var SAFE_ID = /^[A-Za-z0-9_-]{1,64}$/, SAFE_DATE = /^\d{4}-\d{2}-\d{2}$/;
+  function safeNum(v){ var n = Number(v); return (typeof v === 'number' || (typeof v === 'string' && v.trim() !== '')) && isFinite(n) ? n : null; }
+  function safeDate(v){ return typeof v === 'string' && SAFE_DATE.test(v) ? v : null; }
+  function sanitizeState(st){
+    var n = 0, idMap = {};
+    function fresh(prefix){ n++; return prefix + Date.now().toString(36) + n; }
+    st.locations = (Array.isArray(st.locations) ? st.locations : []).filter(function(l){ return l && typeof l === 'object'; });
+    st.locations.forEach(function(l){
+      if (typeof l.id !== 'string' || !SAFE_ID.test(l.id)){ var nid = fresh('loc-'); idMap[String(l.id)] = nid; l.id = nid; }
+      if (typeof l.name !== 'string') l.name = String(l.name || '');
+    });
+    st.plants = (Array.isArray(st.plants) ? st.plants : []).filter(function(p){ return p && typeof p === 'object'; });
+    st.plants.forEach(function(p){
+      if (typeof p.id !== 'string' || !SAFE_ID.test(p.id)) p.id = fresh('p');
+      if (p.locationId != null && !SAFE_ID.test(String(p.locationId))) p.locationId = idMap[String(p.locationId)] || null;
+      ['name','species','notes','advice','findings','healthLabel','careNote','waterAmount'].forEach(function(k){ if (p[k] != null && typeof p[k] !== 'string') p[k] = String(p[k]); });
+      ['lastWatered','lastFertilized','lastIron','lastPruned'].forEach(function(k){ if (p[k] != null) p[k] = safeDate(p[k]); });
+      if (p.waterEvery != null){ var we = safeNum(p.waterEvery); p.waterEvery = we && we > 0 ? Math.min(Math.round(we), 60) : null; }
+      if (p.photoId != null && !SAFE_ID.test(String(p.photoId))) p.photoId = null;
+      if (Array.isArray(p.harvestMonths)) p.harvestMonths = p.harvestMonths.map(Number).filter(function(m){ return m >= 1 && m <= 12; });
+      else if (p.harvestMonths != null) delete p.harvestMonths;
+      if (Array.isArray(p.journal)){
+        p.journal = p.journal.filter(function(e){ return e && typeof e === 'object' && safeDate(e.date); });
+        p.journal.forEach(function(e){
+          if (typeof e.id !== 'string' || !SAFE_ID.test(e.id)) e.id = fresh('j');
+          if (e.qty != null) e.qty = safeNum(e.qty);
+          if (e.note != null && typeof e.note !== 'string') e.note = String(e.note);
+          if (e.unit != null && typeof e.unit !== 'string') e.unit = String(e.unit);
+          if (e.photoId != null && !SAFE_ID.test(String(e.photoId))) delete e.photoId;
+        });
+      } else if (p.journal != null) delete p.journal;
+    });
+    if (!Array.isArray(st.log)) st.log = [];
+    st.log = st.log.filter(function(ev){ return ev && safeDate(ev.date); });
+    return st;
+  }
+  sanitizeState(state);
   if (!state.plants) state.plants = [];
   if (!state.log) state.log = [];
   if (typeof state.weekOffset !== 'number') state.weekOffset = 0;
@@ -2581,16 +2620,22 @@
     wrap.addEventListener('click', function(e){
       if (e.target === wrap || e.target.id === 'restoreCancel'){ closeSheet(); return; }
       if (e.target.id === 'restoreConfirm'){
-        state.plants = Array.isArray(data.plants) ? data.plants : [];
-        state.locations = (Array.isArray(data.locations) && data.locations.length) ? data.locations : [{ id:'loc-home', name:'בית', lightLevel:'indoor' }];
+        sanitizeState(data);
+        state.plants = data.plants;
+        state.locations = data.locations.length ? data.locations : [{ id:'loc-home', name:'בית', lightLevel:'indoor' }];
         if (!state.locations.some(function(l){ return l.id===TREES_LOC; })) state.locations.unshift({ id:TREES_LOC, name:'עצי פרי', lightLevel:'full', kind:'trees' });
         state.plants.forEach(function(p){
           if (p.type === 'tree') p.locationId = TREES_LOC;
           else if (!validArea(p.locationId)) p.locationId = potLocations()[0].id;
         });
-        state.log = Array.isArray(data.log) ? data.log : [];
+        state.log = data.log;
         if (data.photos && typeof data.photos === 'object'){
-          Object.keys(data.photos).forEach(function(id){ putPhoto(id, dataUrlToBlob(data.photos[id])).then(function(){ renderAll(); }).catch(function(){}); });
+          Object.keys(data.photos).forEach(function(id){
+            var src = data.photos[id];
+            // only real image data URLs, under safe ids
+            if (!SAFE_ID.test(id) || typeof src !== 'string' || !/^data:image\/(png|jpe?g|webp|gif|heic);base64,/i.test(src)) return;
+            putPhoto(id, dataUrlToBlob(src)).then(function(){ renderAll(); }).catch(function(){});
+          });
         }
         delete state.pendingTimer;
         if (!validArea(selectedArea)) setArea(state.locations[0].id);
