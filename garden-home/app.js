@@ -660,7 +660,7 @@
   function careDue(p, kind){ return kind==='water' ? waterDue(p) : kind==='iron' ? ironDue(p) : fertDue(p); }
 
   /* ---------- state ---------- */
-  var APP_VERSION = '13';
+  var APP_VERSION = '14';
   var STATE_KEY = 'gardenHome_state_v1';
   var state = null;
   try { state = JSON.parse(localStorage.getItem(STATE_KEY) || 'null'); } catch(e){ state = null; }
@@ -1400,7 +1400,7 @@
   function yearStripHtml(p){
     var fr = treeFertRule(p), pr = pruneRule(p), hm = harvestMonthsOf(p) || [], cur = today().getMonth()+1, cells = '';
     for (var m=1; m<=12; m++){
-      var ic = (fr.months.indexOf(m) !== -1 ? '🌱' : '') + (hm.indexOf(m) !== -1 ? '<br>🧺' : '') + (pr.months.indexOf(m) !== -1 ? '<br>✂️' : '');
+      var ic = (fr.months.indexOf(m) !== -1 ? '<span>🌱</span>' : '') + (hm.indexOf(m) !== -1 ? '<span>🧺</span>' : '') + (pr.months.indexOf(m) !== -1 ? '<span>✂️</span>' : '');
       cells += '<button type="button" class="ys-cell' + (m === cur ? ' now' : '') + '" data-pp="hvm" data-m="' + m + '" aria-label="קטיף ב' + MONTH_NAMES[m-1] + '">' +
         '<span class="ys-m">' + MONTH_SHORT[m-1] + '</span><span class="ys-i">' + ic + '</span></button>';
     }
