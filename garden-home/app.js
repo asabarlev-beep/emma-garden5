@@ -544,9 +544,7 @@
   /* ---------- seasonal checks per tree kind (southern Israel) ---------- */
   var MEDFLY_TIP = '4–6 שבועות לפני ההבשלה לתלות מלכודת עם פיתיון חלבוני (אחת לעץ, בצד המוצל). לאסוף ולהשמיד כל פרי נשור או מנוקב, לא להשאיר על הקרקע. נקודה רכה עם חור קטן בקליפה היא סימן לנגיעה.';
   var SEASON_CHECKS = [
-    { id:'medfly-stone', icon:'🪰', title:'זבוב הפירות', months:[4,5,6], keys:['נקטרינ','אפרסק','משמש','שזיף'], tip:MEDFLY_TIP },
-    { id:'medfly-summer', icon:'🪰', title:'זבוב הפירות', months:[6,7,8,9], keys:['מנגו','תאנ','גויאב','תפוח ענה','תפוח ורד'], tip:MEDFLY_TIP },
-    { id:'medfly-autumn', icon:'🪰', title:'זבוב הפירות', months:[9,10,11], keys:['פינק','אפרסמון','תפוז','קלמנטינ','מנדרינ'], tip:MEDFLY_TIP },
+    { id:'medfly', icon:'🪰', title:'מלכודות לזבוב הפירות', months:[5], keys:['נקטרינ','אפרסק','משמש','שזיף','מנגו','תאנ','גויאב','תפוח','פינק','אפרסמון','תפוז','קלמנטינ','מנדרינ','פגוי'], tip:'במאי לתלות מלכודת עם פיתיון חלבוני על כל עץ שנותן פרי (אחת לעץ, בצד המוצל), ולהשאיר עד סוף הקטיף. להחליף פיתיון כל 4–6 שבועות. לאסוף ולהשמיד כל פרי נשור או מנוקב.' },
     { id:'leafminer', icon:'🍃', title:'מנהרן עלי ההדרים', months:[4,5,9,10], keys:['ליים','לימון','תפוז','אשכולית','קלמנטינ','מנדרינ','פומלה'], tip:'בכל גל צימוח חדש: עלים צעירים מסולסלים עם מנהרות כסופות מתפתלות. בעץ בוגר הנזק קוסמטי ואין צורך לטפל. בעץ צעיר: לרסס שמן קיצי על הצימוח החדש כל 7–10 ימים, עד שהעלים מתקשים.' },
     { id:'mango-mildew', icon:'🌼', title:'קימחון בתפרחות המנגו', months:[2,3], keys:['מנגו'], tip:'בתחילת הפריחה לבדוק אם יש אבקה לבנה על התפרחות. אם כן: לרסס גופרית מוקדם בבוקר ולחזור אחרי שבועיים. בלי טיפול התפרחות מתייבשות ואין חנטה.' },
     { id:'thin-stone', icon:'🫳', title:'דילול פירות', months:[3,4], keys:['נקטרינ','אפרסק','שזיף'], tip:'כשהפירות בגודל אגוז לוז: להשאיר פרי אחד כל 15–20 ס״מ לאורך הענף, ולהסיר את הקטנים והפגומים. פחות פירות נותנים פירות גדולים ומתוקים יותר, ומונעים שבירת ענפים.' },
@@ -566,10 +564,6 @@
   }
   // Fruit-fly checks follow the tree's own harvest when it is known: from a month before until the harvest ends.
   function checkMonthsFor(c, p){
-    if (/^medfly/.test(c.id)){
-      var hm = harvestMonthsOf(p);
-      if (hm && hm.length) return [hm[0] === 1 ? 12 : hm[0] - 1].concat(hm);
-    }
     return c.months;
   }
   function treeMatches(p, keys){ var hay = (p.name || '') + ' ' + (p.species || ''); return keys.some(function(k){ return hay.indexOf(k) !== -1; }); }
@@ -709,7 +703,7 @@
   function careDue(p, kind){ return kind==='water' ? waterDue(p) : kind==='iron' ? ironDue(p) : fertDue(p); }
 
   /* ---------- state ---------- */
-  var APP_VERSION = '18';
+  var APP_VERSION = '19';
   var STATE_KEY = 'gardenHome_state_v1';
   var state = null;
   try { state = JSON.parse(localStorage.getItem(STATE_KEY) || 'null'); } catch(e){ state = null; }
@@ -1561,7 +1555,7 @@
         '<span class="ys-m">' + MONTH_SHORT[m-1] + '</span><span class="ys-i">' + ic + '</span></button>';
     }
     return '<div class="year-box"><div class="ys-title">📅 לוח השנה של העץ</div><div class="year-strip">' + cells + '</div>' +
-      '<div class="ys-legend">🌱 דישון · 🧺 קטיף · ✂️ גיזום · ' + (hm.length ? 'לחיצה על חודש מוסיפה או מורידה קטיף.' : '<b>לחצו על החודשים שבהם העץ נותן פרי</b> — מזה נגזרות בדיקות זבוב הפירות.') + '</div></div>';
+      '<div class="ys-legend">🌱 דישון · 🧺 קטיף · ✂️ גיזום · לחיצה על חודש מוסיפה או מורידה קטיף.</div></div>';
   }
   function nextWaterDateText(p){
     if (!p.lastWatered) return '';
