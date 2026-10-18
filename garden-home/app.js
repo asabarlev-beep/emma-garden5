@@ -674,9 +674,10 @@
     return { daysUntil: diffDays(addDays(last, fertInterval(p, last)), today()) };
   }
   function ironOffAt(d){ return season(d) === 'winter'; }
-  // Iron chelate (Fe-EDDHA) on fertilizing Fridays: the 1st Friday of March, June and September,
+  // Iron chelate (Fe-EDDHA) from a watering can washes past the roots with the drip irrigation,
+  // so it is given monthly through the growing season: the 1st Friday of March to September,
   // together with that day's 20-20-20 round.
-  var IRON_MONTHS = [3, 6, 9];
+  var IRON_MONTHS = [3, 4, 5, 6, 7, 8, 9];
   function ironSchedule(from, to){
     var out = [];
     for (var mm = new Date(from.getFullYear(), from.getMonth(), 1); mm <= to; mm = new Date(mm.getFullYear(), mm.getMonth()+1, 1)){
@@ -731,7 +732,7 @@
   function careDue(p, kind){ return kind==='water' ? waterDue(p) : kind==='iron' ? ironDue(p) : fertDue(p); }
 
   /* ---------- state ---------- */
-  var APP_VERSION = '21';
+  var APP_VERSION = '22';
   var STATE_KEY = 'gardenHome_state_v1';
   var state = null;
   try { state = JSON.parse(localStorage.getItem(STATE_KEY) || 'null'); } catch(e){ state = null; }
@@ -1536,7 +1537,7 @@
         (isTree ? '' : '<div class="pp-stat' + (isDue(w)?' due':'') + '"><div class="k">💧 השקיה הבאה</div><div class="v">' + waterText(w) + '</div><div class="d">' + nextWaterDateText(p) + 'אחרונה: ' + relDay(p.lastWatered) + '</div></div>') +
         '<div class="pp-stat' + (isDue(f)?' due fert':'') + '"><div class="k">🌱 דישון</div><div class="v">' + fertText(f) + '</div><div class="d">אחרון: ' + relDay(p.lastFertilized) + (isTree ? ' · ' + monthRangeText(frule.months) + (frule.twice ? ', שישי ראשון ושלישי בחודש' : ', שישי ראשון בחודש') : '') + '</div></div>' +
         (isTree ? (p.needsIron
-            ? '<div class="pp-stat iron-stat' + (isDue(r)?' due iron':'') + '"><div class="k">🔩 ברזל (כלאט)</div><div class="v">' + ironText(r) + '</div><div class="d">אחרון: ' + relDay(p.lastIron) + ' · שישי ראשון במרץ, יוני וספטמבר · <button type="button" class="link-btn" data-pp="ironOff">הפסקת מעקב</button></div></div>'
+            ? '<div class="pp-stat iron-stat' + (isDue(r)?' due iron':'') + '"><div class="k">🔩 ברזל (כלאט)</div><div class="v">' + ironText(r) + '</div><div class="d">אחרון: ' + relDay(p.lastIron) + ' · שישי ראשון בחודש, מרץ–ספטמבר · <button type="button" class="link-btn" data-pp="ironOff">הפסקת מעקב</button></div></div>'
             : '<div class="pp-stat iron-stat off"><div class="k">🔩 ברזל (כלאט)</div><div class="v">לא במעקב</div><div class="d"><button type="button" class="link-btn" data-pp="ironOn">העץ צריך ברזל</button> · הצהבה בין העורקים בעלים צעירים</div></div>') +
           '<div class="pp-stat wide' + (isDue(g)?' due prune':'') + '"><div class="k">✂️ גיזום · ' + escapeHtml(rule.label) + '</div><div class="v">' + pruneText(g) + '</div><div class="d">אחרון: ' + relDay(p.lastPruned) + (rule.months.length ? ' · עונה: ' + pruneMonthsText(rule) : '') + '</div></div>' : '') +
       '</div>' +
