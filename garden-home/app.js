@@ -732,7 +732,7 @@
   function careDue(p, kind){ return kind==='water' ? waterDue(p) : kind==='iron' ? ironDue(p) : fertDue(p); }
 
   /* ---------- state ---------- */
-  var APP_VERSION = '23';
+  var APP_VERSION = '24';
   var STATE_KEY = 'gardenHome_state_v1';
   var state = null;
   try { state = JSON.parse(localStorage.getItem(STATE_KEY) || 'null'); } catch(e){ state = null; }
@@ -1345,10 +1345,12 @@
     }).join('');
   }
   function todayStripHtml(){
-    var pots = potLocations(), trees = plantsInArea(TREES_LOC);
-    var waterAreas = pots.filter(function(l){ return plantsInArea(l.id).some(function(p){ return isDue(waterDue(p)); }); }).length;
-    var fertAreas = pots.filter(function(l){ return plantsInArea(l.id).some(function(p){ return isDue(fertDue(p)); }); }).length;
-    var tc = dueByKind(trees);
+    // Only what belongs to today's work day: house pots on Tue/Fri, garden pots and trees on Fri/Sat.
+    // Anything due on another group's day waits for that group's day.
+    var t0 = today(), day = calendarPlan(t0, t0)[fmt(t0)] || { water:[], fert:[], iron:[], prune:[] };
+    var waterAreas = areasOf(potIds(day.water)).length;
+    var fertAreas = areasOf(potIds(day.fert)).length;
+    var tc = { fert: treeIds(day.fert).length, iron: treeIds(day.iron).length, prune: treeIds(day.prune).length };
     var items = [];
     if (waterAreas) items.push('<span class="ts-item water"><b>💧 ' + waterAreas + '</b> ' + (waterAreas === 1 ? 'אזור' : 'אזורים') + ' להשקות</span>');
     if (fertAreas || tc.fert) items.push('<span class="ts-item fert"><b>🌱 ' + (fertAreas + tc.fert) + '</b> לדשן' + (fertAreas && tc.fert ? ' (' + fertAreas + (fertAreas === 1 ? ' אזור, ' : ' אזורים, ') + tc.fert + (tc.fert === 1 ? ' עץ)' : ' עצים)') : tc.fert ? ' (עצים)' : ' (אזורים)') + '</span>');
